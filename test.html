@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL测试</title>
+</head>
+<body>
+    <h1>URL构建测试</h1>
+    <div id="test-results"></div>
+    
+    <script>
+        // 模拟getOptimizedUrl函数的逻辑
+        function testGetOptimizedUrl(originalUrl, quality = 'auto') {
+            if (!originalUrl) return originalUrl;
+            
+            // 如果是本地文件或已经包含质量参数的URL，直接返回
+            if (originalUrl.startsWith('blob:') || originalUrl.startsWith('file:')) {
+                return originalUrl;
+            }
+            
+            try {
+                // 尝试解析URL，如果是相对路径则转换为绝对路径
+                let url;
+                if (originalUrl.startsWith('http://') || originalUrl.startsWith('https://')) {
+                    url = new URL(originalUrl);
+                } else {
+                    // 相对路径，使用当前页面作为base
+                    url = new URL(originalUrl, window.location.origin);
+                }
+                
+                // 根据画质选择添加参数
+                switch (quality) {
+                    case 'low':
+                        url.searchParams.set('quality', 'low');
+                        url.searchParams.set('width', '1024');
+                        break;
+                    case 'medium':
+                        url.searchParams.set('quality', 'medium');
+                        url.searchParams.set('width', '2048');
+                        break;
+                    case 'high':
+                        url.searchParams.set('quality', 'high');
+                        url.searchParams.set('width', '4096');
+                        break;
+                    case 'auto':
+                        url.searchParams.set('quality', 'medium');
+                        url.searchParams.set('width', '2048');
+                        break;
+                }
+                
+                return url.toString();
+            } catch (error) {
+                console.warn('URL解析失败，使用原始URL:', error);
+                return originalUrl;
+            }
+        }
+        
+        // 测试用例
+        const testCases = [
+            'image.jpg',
+            '/media/image.jpg',
+            'media/image.jpg',
+            'http://example.com/image.jpg',
+            'https://example.com/image.jpg',
+            'blob:http://localhost:8080/12345678-1234-1234-1234-123456789abc',
+            'file:///C:/path/to/image.jpg'
+        ];
+        
+        const results = document.getElementById('test-results');
+        
+        testCases.forEach(testUrl => {
+            const div = document.createElement('div');
+            div.style.margin = '10px 0';
+            div.style.padding = '10px';
+            div.style.border = '1px solid #ccc';
+            div.style.borderRadius = '5px';
+            
+            try {
+                const optimizedUrl = testGetOptimizedUrl(testUrl);
+                div.innerHTML = `
+                    <strong>原始URL:</strong> ${testUrl}<br>
+                    <strong>优化URL:</strong> ${optimizedUrl}<br>
+                    <strong>状态:</strong> <span style="color: green;">✓ 成功</span>
+                `;
+            } catch (error) {
+                div.innerHTML = `
+                    <strong>原始URL:</strong> ${testUrl}<br>
+                    <strong>错误:</strong> ${error.message}<br>
+                    <strong>状态:</strong> <span style="color: red;">✗ 失败</span>
+                `;
+            }
+            
+            results.appendChild(div);
+        });
+    </script>
+</body>
+</html>

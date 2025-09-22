@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+    <title>全景播放器 | 纯前端</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">全景播放器</div>
+      <div class="controls">
+        <button id="openButton" class="btn">打开图片/视频</button>
+        <input id="fileInput" type="file" accept="image/*,video/*" style="display:none" />
+        <button id="serverPickerButton" class="btn">从服务器选择</button>
+        <select id="qualitySelector" class="quality-selector">
+          <option value="auto">自动画质</option>
+          <option value="low">低画质 (快速加载)</option>
+          <option value="medium">中画质</option>
+          <option value="high">高画质</option>
+        </select>
+        <div id="loadingProgress" class="loading-progress" style="display: none;">
+          <div class="progress-bar">
+            <div class="progress-fill"></div>
+          </div>
+          <span class="progress-text">加载中...</span>
+        </div>
+      </div>
+    </header>
+
+    <main id="viewer" class="viewer" tabindex="0">
+      <div class="hint">
+        将全景图片或视频拖拽到此处，或点击“打开图片/视频”
+      </div>
+      <!-- three.js renderer 将在此处注入 -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar__header">
+          <input id="sidebarBaseInput" class="text" placeholder="列表根路径（默认 /media/）" />
+          <button id="sidebarLoadBtn" class="btn">加载</button>
+        </div>
+        <div class="tabs">
+          <button id="tabVideos" class="tab active">视频</button>
+          <button id="tabImages" class="tab">图片</button>
+        </div>
+        <div class="tabpanes">
+          <ul id="videoList" class="file-list"></ul>
+          <ul id="imageList" class="file-list" hidden></ul>
+        </div>
+      </aside>
+      <div id="serverPicker" class="server-picker" hidden>
+        <div class="server-picker__panel">
+          <div class="server-picker__header">
+            <div>从服务器选择媒体</div>
+            <button id="serverPickerClose" class="btn">关闭</button>
+          </div>
+          <div class="server-picker__body">
+            <div class="server-picker__hint">默认尝试请求 /media/manifest.json；失败则可输入 URL。</div>
+            <div class="server-picker__inputs">
+              <input id="serverBaseInput" class="text" placeholder="资源根路径（可选，默认为 /media/）" />
+              <button id="loadManifestBtn" class="btn">加载清单</button>
+            </div>
+            <ul id="mediaList" class="media-list"></ul>
+            <div class="server-picker__inputs">
+              <input id="directUrlInput" class="text" placeholder="或直接输入完整 URL（图片/视频）" />
+              <button id="openDirectUrlBtn" class="btn">打开 URL</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 播放器控制栏 -->
+    <div class="player-controls" id="playerControls">
+      <div class="player-controls__content">
+        <div class="player-controls__left">
+          <button id="playPauseButton" class="player-btn player-btn--play" disabled>
+            <svg class="player-icon" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </button>
+          <button id="stopButton" class="player-btn player-btn--stop" disabled>
+            <svg class="player-icon" viewBox="0 0 24 24">
+              <rect x="6" y="6" width="12" height="12"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="player-controls__center">
+          <div class="time-display">
+            <span id="timeCurrent">00:00</span>
+            <span class="time-separator">/</span>
+            <span id="timeTotal">00:00</span>
+          </div>
+          <div class="seek-container">
+            <input id="seekBar" class="seek-bar" type="range" min="0" max="1000" value="0" step="1" disabled>
+            <div class="seek-tooltip" id="seekTooltip">00:00</div>
+          </div>
+        </div>
+        
+        <div class="player-controls__right">
+          <div class="volume-control">
+            <button id="muteButton" class="player-btn player-btn--mute">
+              <svg class="player-icon" viewBox="0 0 24 24">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+              </svg>
+            </button>
+            <input type="range" class="volume-slider" min="0" max="100" value="40">
+          </div>
+          <button class="player-btn player-btn--fullscreen" id="fullscreenButton">
+            <svg class="player-icon player-icon--enter" viewBox="0 0 24 24">
+              <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+            </svg>
+            <svg class="player-icon player-icon--exit" viewBox="0 0 24 24" style="display: none;">
+              <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <footer class="app-footer">
+      <div>
+        鼠标拖动/触摸滑动查看，滚轮缩放。支持 equirect（等距柱状）360° 图片与视频。
+      </div>
+    </footer>
+
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script src="main.js"></script>
+  </body>
+  </html>
+
+
