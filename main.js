@@ -102,6 +102,7 @@
   let isXiaomi = false;
   let isIOS = false;
   let isSafari = false;
+  let isMacOSSafari = false;
 
   init();
   animate();
@@ -117,20 +118,68 @@
     isSafari = /Safari/i.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS/i.test(navigator.userAgent);
     
     // 检测macOS Safari
-    const isMacOSSafari = isSafari && /Macintosh/i.test(navigator.userAgent);
+    isMacOSSafari = isSafari && /Macintosh/i.test(navigator.userAgent);
+    
+    // 检测安卓设备
+    const isAndroid = /Android/i.test(navigator.userAgent);
     
     // 检测MIUI浏览器和小米设备
     isMIUI = /MiuiBrowser|MIUI/i.test(navigator.userAgent) || 
              (isMobile && /Xiaomi|Redmi/i.test(navigator.userAgent));
     isXiaomi = /Xiaomi|Redmi|MIUI/i.test(navigator.userAgent);
     
-    console.log('设备检测:', { isMobile, isIOS, isSafari, isMacOSSafari, isMIUI, isXiaomi, userAgent: navigator.userAgent });
+    console.log('设备检测:', { isMobile, isIOS, isAndroid, isSafari, isMacOSSafari, isMIUI, isXiaomi, userAgent: navigator.userAgent });
+    
+    // 安卓设备特殊提示
+    if (isAndroid) {
+      console.log('检测到安卓设备，应用安卓优化设置');
+      
+      // 显示安卓用户提示
+      setTimeout(() => {
+        const tip = document.createElement('div');
+        tip.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(0,0,0,0.8);
+          color: white;
+          padding: 20px;
+          border-radius: 10px;
+          z-index: 10000;
+          text-align: center;
+          max-width: 300px;
+          font-size: 14px;
+        `;
+        tip.innerHTML = `
+          <div>检测到安卓设备</div>
+          <div style="margin-top: 10px; font-size: 12px;">
+            安卓优化已启用：<br>
+            1. 视频纹理优化<br>
+            2. WebGL渲染优化<br>
+            3. 视频属性适配<br>
+            4. 性能优化设置
+          </div>
+          <button onclick="this.parentElement.remove()" style="margin-top: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 5px;">知道了</button>
+        `;
+        document.body.appendChild(tip);
+        
+        // 5秒后自动关闭
+        setTimeout(() => {
+          if (tip.parentElement) tip.remove();
+        }, 5000);
+      }, 2000);
+    }
     
     // Safari浏览器特殊提示（包括iOS和macOS）
     if (isIOS || isMacOSSafari) {
-      console.log('检测到iOS设备，应用iOS优化设置');
+      if (isIOS) {
+        console.log('检测到iOS设备，应用iOS优化设置');
+      } else if (isMacOSSafari) {
+        console.log('检测到macOS Safari浏览器，应用Safari优化设置');
+      }
       
-      // 显示iOS用户提示
+      // 显示Safari用户提示
       setTimeout(() => {
         const tip = document.createElement('div');
         tip.style.cssText = `
@@ -230,6 +279,13 @@
       webglOptions.preserveDrawingBuffer = true; // iOS设备保持绘制缓冲区
     }
     
+    // 安卓设备特殊处理
+    if (isAndroid) {
+      webglOptions.antialias = false; // 安卓设备关闭抗锯齿
+      webglOptions.preserveDrawingBuffer = true; // 安卓设备保持绘制缓冲区
+      webglOptions.alpha = false; // 安卓设备关闭alpha通道
+    }
+    
     renderer = new THREE.WebGLRenderer(webglOptions);
     
     // 移动端优化像素比
@@ -280,7 +336,7 @@
     onResize();
     
     // Safari浏览器特殊resize处理
-    if (isIOS || isSafari) {
+    if (isIOS || isMacOSSafari) {
       window.addEventListener('resize', () => {
         setTimeout(() => {
           const sidebar = document.getElementById('sidebar');
@@ -297,7 +353,7 @@
     initNetworkOptimization();
     
     // Safari浏览器特殊初始化（包括iOS和macOS）
-    if (isIOS || isSafari) {
+    if (isIOS || isMacOSSafari) {
       initSafariOptimizations();
     }
   }
@@ -1211,10 +1267,62 @@
       const name = document.createElement('span');
       name.className = 'file-list__name';
       name.textContent = it.title || it.url;
-      li.appendChild(name);
-      li.addEventListener('dblclick', () => {
-        if (kind === 'video') loadVideo(it.url); else loadImage(it.url);
-      });
+      
+      // 创建加载媒体文件的函数
+      const loadMedia = () => {
+        console.log('加载媒体文件:', { kind, url: it.url, title: it.title });
+        if (kind === 'video') {
+          console.log('加载视频:', it.url);
+          loadVideo(it.url);
+        } else {
+          console.log('加载图片:', it.url);
+          loadImage(it.url);
+        }
+      };
+      
+      if (isMacOSSafari) {
+        // macOS Safari特殊处理：添加播放按钮
+        const playBtn = document.createElement('button');
+        playBtn.className = 'play-btn';
+        playBtn.innerHTML = kind === 'video' ? '▶' : '📷';
+        playBtn.style.cssText = `
+          background: var(--brand);
+          color: white;
+          border: none;
+          border-radius: 3px;
+          padding: 2px 6px;
+          font-size: 12px;
+          cursor: pointer;
+          margin-left: 8px;
+        `;
+        playBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          console.log('macOS Safari播放按钮点击');
+          loadMedia();
+        });
+        
+        // 将播放按钮添加到列表项
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.justifyContent = 'space-between';
+        container.style.alignItems = 'center';
+        container.appendChild(name);
+        container.appendChild(playBtn);
+        li.appendChild(container);
+        
+        // 保留双击事件作为备选
+        li.addEventListener('dblclick', () => {
+          console.log('macOS Safari双击事件触发');
+          loadMedia();
+        });
+      } else {
+        // 非macOS Safari的原有逻辑
+        li.appendChild(name);
+        li.addEventListener('dblclick', () => {
+          console.log('双击事件触发');
+          loadMedia();
+        });
+      }
       listEl.appendChild(li);
     }
   }
@@ -1236,7 +1344,7 @@
     const loader = new THREE.TextureLoader();
     
     // Safari浏览器特殊处理（包括iOS和macOS）
-    if (isIOS || isSafari) {
+    if (isIOS || isMacOSSafari) {
       // Safari浏览器使用更保守的加载策略
       loader.setCrossOrigin('anonymous');
     }
@@ -1251,7 +1359,7 @@
         texture.colorSpace = THREE.SRGBColorSpace;
         
         // Safari浏览器特殊纹理设置（包括iOS和macOS）
-        if (isIOS || isSafari) {
+        if (isIOS || isMacOSSafari) {
           texture.generateMipmaps = false; // Safari浏览器禁用mipmaps提高性能
           texture.minFilter = THREE.LinearFilter;
           texture.magFilter = THREE.LinearFilter;
@@ -1309,8 +1417,10 @@
         showLoadingProgress(false);
         
         let errorMessage = '图片加载失败: ' + (err.message || '未知错误');
-        if (isSafari) {
-          errorMessage += '\n\nSafari浏览器提示：\n1. 检查图片URL是否可访问\n2. 确认图片格式是否支持\n3. 检查CORS设置';
+        if (isMacOSSafari) {
+          errorMessage += '\n\nmacOS Safari浏览器提示：\n1. 检查图片URL是否可访问\n2. 确认图片格式是否支持\n3. 检查CORS设置';
+        } else if (isIOS) {
+          errorMessage += '\n\niOS Safari浏览器提示：\n1. 检查图片URL是否可访问\n2. 确认图片格式是否支持\n3. 检查CORS设置';
         }
         
         alert(errorMessage);
@@ -1341,7 +1451,7 @@
     videoEl.volume = lastVolume / 100; // 设置默认音量为40%
     
     // Safari浏览器特殊视频属性（包括iOS和macOS）
-    if (isIOS || isSafari) {
+    if (isIOS || isMacOSSafari) {
       videoEl.setAttribute('webkit-playsinline', 'true');
       videoEl.setAttribute('playsinline', 'true');
       videoEl.setAttribute('x-webkit-airplay', 'deny');
@@ -1367,8 +1477,29 @@
       isStreamingMode = false;
     }
     
-    // 移动端兼容性设置
-    if (!isIOS && !isSafari) {
+    // 安卓设备特殊视频属性
+    if (isAndroid) {
+      console.log('安卓设备检测到，应用特殊视频属性');
+      videoEl.setAttribute('webkit-playsinline', 'true');
+      videoEl.setAttribute('playsinline', 'true');
+      videoEl.setAttribute('x5-video-player-type', 'h5');
+      videoEl.setAttribute('x5-video-player-fullscreen', 'false');
+      videoEl.setAttribute('x5-video-orientation', 'portrait');
+      videoEl.setAttribute('x5-video-player-mode', 'h5');
+      videoEl.setAttribute('preload', 'auto');
+      // 安卓设备可能需要特殊的渲染设置
+      videoEl.style.position = 'absolute';
+      videoEl.style.top = '-9999px';
+      videoEl.style.left = '-9999px';
+      videoEl.style.width = '1px';
+      videoEl.style.height = '1px';
+      videoEl.style.opacity = '0';
+      videoEl.style.pointerEvents = 'none';
+      videoEl.style.zIndex = '-1';
+    }
+    
+    // 其他移动端兼容性设置
+    if (!isIOS && !isMacOSSafari && !isAndroid) {
       videoEl.setAttribute('webkit-playsinline', 'true');
       videoEl.setAttribute('playsinline', 'true');
       videoEl.setAttribute('x5-video-player-type', 'h5');
@@ -1381,7 +1512,7 @@
       videoEl.preload = 'metadata'; // 减少初始加载
       
       // Safari浏览器特殊处理（包括iOS和macOS）
-      if (isIOS || isSafari) {
+      if (isIOS || isMacOSSafari) {
         console.log('检测到Safari浏览器，应用Safari视频优化');
         videoEl.setAttribute('webkit-playsinline', 'true');
         videoEl.setAttribute('playsinline', 'true');
@@ -1439,6 +1570,17 @@
       vtex.minFilter = THREE.LinearFilter;
       vtex.magFilter = THREE.LinearFilter;
       vtex.format = THREE.RGBAFormat;
+      
+      // 安卓设备特殊纹理设置
+      if (isAndroid) {
+        console.log('安卓设备检测到，应用特殊视频纹理设置');
+        vtex.generateMipmaps = false; // 安卓设备禁用mipmaps
+        vtex.minFilter = THREE.LinearFilter;
+        vtex.magFilter = THREE.LinearFilter;
+        vtex.anisotropy = 1; // 安卓设备限制各向异性
+        vtex.flipY = false; // 安卓设备可能需要特殊处理
+      }
+      
       // 修正镜像：水平翻转
       vtex.wrapS = THREE.RepeatWrapping;
       vtex.center.set(0.5, 0.5);
@@ -1478,7 +1620,7 @@
           volumeSlider.value = 0;
         }
         updateMuteButton();
-      } else if (isSafari) {
+      } else if (isMacOSSafari) {
         // macOS Safari：尝试自动播放（静音模式）
         updatePlayButtonIcon(false);
         console.log('macOS Safari检测到，尝试自动播放');
@@ -1585,8 +1727,10 @@
       showLoadingProgress(false);
       
       let errorMessage = '视频加载失败: ' + (videoEl.error ? videoEl.error.message : '未知错误');
-      if (isSafari) {
-        errorMessage += '\n\nSafari浏览器提示：\n1. 检查视频URL是否可访问\n2. 确认视频格式是否支持（推荐MP4）\n3. 检查CORS设置\n4. 尝试刷新页面';
+      if (isMacOSSafari) {
+        errorMessage += '\n\nmacOS Safari浏览器提示：\n1. 检查视频URL是否可访问\n2. 确认视频格式是否支持（推荐MP4）\n3. 检查CORS设置\n4. 尝试刷新页面';
+      } else if (isIOS) {
+        errorMessage += '\n\niOS Safari浏览器提示：\n1. 检查视频URL是否可访问\n2. 确认视频格式是否支持（推荐MP4）\n3. 检查CORS设置\n4. 尝试刷新页面';
       }
       
       alert(errorMessage);
@@ -1632,7 +1776,13 @@
   }
 
   function toggleFullscreen() {
-    if (!document.fullscreenElement) {
+    // 兼容不同浏览器的全屏状态检测
+    const fullscreenElement = document.fullscreenElement || 
+                             document.webkitFullscreenElement || 
+                             document.mozFullScreenElement || 
+                             document.msFullscreenElement;
+    
+    if (!fullscreenElement) {
       // 进入全屏
       if (isMobile) {
         // 移动端特殊处理，防止调用系统播放器
@@ -1678,18 +1828,30 @@
 
   // 监听全屏状态变化
   function handleFullscreenChange() {
-    isFullscreen = !!document.fullscreenElement;
+    // 兼容不同浏览器的全屏状态检测
+    const fullscreenElement = document.fullscreenElement || 
+                             document.webkitFullscreenElement || 
+                             document.mozFullScreenElement || 
+                             document.msFullscreenElement;
+    isFullscreen = !!fullscreenElement;
+    
+    console.log('全屏状态变化:', { isFullscreen, fullscreenElement });
+    
     const sidebar = document.getElementById('sidebar');
     
     if (sidebar) {
       if (isFullscreen) {
+        console.log('进入全屏，隐藏sidebar');
         sidebar.style.display = 'none';
+        sidebar.style.visibility = 'hidden';
+        sidebar.style.opacity = '0';
       } else {
+        console.log('退出全屏，显示sidebar');
         sidebar.style.display = 'flex';
+        sidebar.style.visibility = 'visible';
+        sidebar.style.opacity = '1';
         // Safari浏览器特殊处理：确保sidebar可见
-        if (isIOS || isSafari) {
-          sidebar.style.visibility = 'visible';
-          sidebar.style.opacity = '1';
+        if (isIOS || isMacOSSafari) {
           sidebar.style.position = 'absolute';
           sidebar.style.right = '0';
           sidebar.style.top = '0';

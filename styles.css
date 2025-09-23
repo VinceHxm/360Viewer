@@ -548,11 +548,8 @@ canvas { display: block; }
     transform: translateZ(0);
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-    /* 确保在iOS设备上可见 */
+    /* 确保在iOS设备上可见，但不影响全屏隐藏 */
     position: absolute !important;
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
   }
 }
 
@@ -562,12 +559,23 @@ canvas { display: block; }
     /* macOS Safari sidebar优化 */
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
-    /* 确保在macOS Safari上可见 */
+    /* 确保在macOS Safari上可见，但不影响全屏隐藏 */
     position: absolute !important;
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
     z-index: 100 !important;
+  }
+  
+  .file-list li {
+    /* macOS Safari文件列表项点击优化 */
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    pointer-events: auto !important;
+  }
+  
+  .file-list li:hover {
+    background: #1a1f2b;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
   }
 }
 
