@@ -99,6 +99,11 @@ body {
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+  /* iOS设备特殊优化 */
+  -webkit-overflow-scrolling: touch;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  will-change: transform;
 }
 .sidebar {
   position: absolute;
@@ -411,6 +416,15 @@ canvas { display: block; }
     height: calc(100vh - 120px - 40px); /* 移动端也使用相同的计算方式 */
   }
   
+  /* 移动端sidebar优化 */
+  .sidebar {
+    width: clamp(200px, 35vw, 300px);
+    z-index: 100;
+    /* 确保在iOS设备上可见 */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+  
   .player-controls {
     height: 70px;
     bottom: 40px; /* 保持固定在底部提示栏上方 */
@@ -503,6 +517,57 @@ canvas { display: block; }
   
   .player-controls__center {
     margin: 0 12px;
+  }
+}
+
+/* Safari浏览器特殊样式（包括iOS和macOS） */
+@supports (-webkit-touch-callout: none) {
+  .viewer {
+    /* iOS Safari特殊优化 */
+    -webkit-overflow-scrolling: touch;
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+  }
+  
+  canvas {
+    /* iOS设备canvas优化 */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    will-change: transform;
+  }
+  
+  .player-controls {
+    /* iOS设备播放控制栏优化 */
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+  
+  .sidebar {
+    /* iOS设备sidebar特殊优化 */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    /* 确保在iOS设备上可见 */
+    position: absolute !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+
+/* macOS Safari特殊样式 */
+@supports (-webkit-appearance: none) {
+  .sidebar {
+    /* macOS Safari sidebar优化 */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    /* 确保在macOS Safari上可见 */
+    position: absolute !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 100 !important;
   }
 }
 

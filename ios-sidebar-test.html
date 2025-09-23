@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>iOS Sidebar 测试</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0f1115;
+            color: #e6e6e6;
+        }
+        
+        .test-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+        }
+        
+        .main-content {
+            flex: 1;
+            background: #161922;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .sidebar {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: clamp(200px, 35vw, 300px);
+            background: #161922;
+            border-left: 1px solid #202636;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            /* iOS设备特殊优化 */
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #202636;
+            font-weight: bold;
+        }
+        
+        .sidebar-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .test-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #2a3142;
+        }
+        
+        .device-info {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        
+        /* iOS设备特殊样式 */
+        @supports (-webkit-touch-callout: none) {
+            .sidebar {
+                position: absolute !important;
+                display: flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: clamp(200px, 35vw, 300px);
+                z-index: 100;
+                -webkit-transform: translateZ(0);
+                transform: translateZ(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="device-info" id="deviceInfo">
+        设备检测中...
+    </div>
+    
+    <div class="test-container">
+        <div class="main-content">
+            <div>
+                <h2>iOS Sidebar 可见性测试</h2>
+                <p>如果您在iOS设备上看到右侧边栏，说明修复成功！</p>
+                <p>如果看不到，请检查控制台日志。</p>
+            </div>
+        </div>
+        
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                📱 右侧边栏
+            </div>
+            <div class="sidebar-content">
+                <div class="test-item">✅ 测试项目 1</div>
+                <div class="test-item">✅ 测试项目 2</div>
+                <div class="test-item">✅ 测试项目 3</div>
+                <div class="test-item">✅ 测试项目 4</div>
+                <div class="test-item">✅ 测试项目 5</div>
+                <div class="test-item">✅ 测试项目 6</div>
+                <div class="test-item">✅ 测试项目 7</div>
+                <div class="test-item">✅ 测试项目 8</div>
+                <div class="test-item">✅ 测试项目 9</div>
+                <div class="test-item">✅ 测试项目 10</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 设备检测
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isSafari = /Safari/i.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS/i.test(navigator.userAgent);
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        document.getElementById('deviceInfo').innerHTML = `
+            设备: ${isMobile ? '移动端' : '桌面端'}<br>
+            iOS: ${isIOS ? '是' : '否'}<br>
+            Safari: ${isSafari ? '是' : '否'}<br>
+            User Agent: ${navigator.userAgent.substring(0, 50)}...
+        `;
+        
+        console.log('设备检测:', { isMobile, isIOS, isSafari, userAgent: navigator.userAgent });
+        
+        // iOS设备特殊处理
+        if (isIOS) {
+            console.log('检测到iOS设备，应用sidebar修复');
+            
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                // 确保sidebar可见
+                sidebar.style.display = 'flex';
+                sidebar.style.visibility = 'visible';
+                sidebar.style.opacity = '1';
+                sidebar.style.position = 'absolute';
+                sidebar.style.right = '0';
+                sidebar.style.top = '0';
+                sidebar.style.bottom = '0';
+                sidebar.style.zIndex = '100';
+                
+                // 强制重绘
+                sidebar.style.transform = 'translateZ(0)';
+                sidebar.style.webkitTransform = 'translateZ(0)';
+                
+                console.log('Sidebar样式已应用:', {
+                    display: sidebar.style.display,
+                    visibility: sidebar.style.visibility,
+                    opacity: sidebar.style.opacity,
+                    position: sidebar.style.position,
+                    width: sidebar.offsetWidth,
+                    height: sidebar.offsetHeight
+                });
+            }
+            
+            // 延迟检查
+            setTimeout(() => {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar) {
+                    console.log('延迟检查 - Sidebar尺寸:', {
+                        offsetWidth: sidebar.offsetWidth,
+                        offsetHeight: sidebar.offsetHeight,
+                        clientWidth: sidebar.clientWidth,
+                        clientHeight: sidebar.clientHeight
+                    });
+                    
+                    if (sidebar.offsetWidth === 0) {
+                        console.warn('Sidebar不可见，尝试修复');
+                        sidebar.style.width = '250px';
+                        sidebar.style.minWidth = '200px';
+                    }
+                }
+            }, 100);
+        }
+        
+        // 窗口大小变化监听
+        window.addEventListener('resize', () => {
+            setTimeout(() => {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar) {
+                    console.log('Resize后 - Sidebar尺寸:', {
+                        offsetWidth: sidebar.offsetWidth,
+                        offsetHeight: sidebar.offsetHeight
+                    });
+                }
+            }, 100);
+        });
+    </script>
+</body>
+</html>

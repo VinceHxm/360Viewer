@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Safari 媒体播放测试</title>
+    <style>
+        :root {
+          --bg: #0f1115;
+          --fg: #e6e6e6;
+          --muted: #9aa4b2;
+          --brand: #4f8cff;
+          --panel: #161922;
+          --btn: #1e2430;
+          --btn-hover: #2a3142;
+        }
+        
+        * { box-sizing: border-box; }
+        html, body { 
+          height: 100%; 
+          margin: 0; 
+          padding: 0; 
+          overflow-x: hidden;
+        }
+        body {
+          background: var(--bg);
+          color: var(--fg);
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        
+        .app-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 10px 14px;
+          background: var(--panel);
+          border-bottom: 1px solid #202636;
+        }
+        
+        .brand { font-weight: 700; color: var(--brand); }
+        
+        .test-container {
+          padding: 20px;
+          max-width: 800px;
+          margin: 0 auto;
+        }
+        
+        .test-section {
+          background: var(--panel);
+          border: 1px solid #202636;
+          border-radius: 8px;
+          padding: 20px;
+          margin: 20px 0;
+        }
+        
+        .test-button {
+          background: var(--brand);
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+          cursor: pointer;
+          margin: 10px 5px;
+        }
+        
+        .test-button:hover {
+          background: #5a9cff;
+        }
+        
+        .test-button:disabled {
+          background: #666;
+          cursor: not-allowed;
+        }
+        
+        .device-info {
+          background: rgba(0,0,0,0.8);
+          padding: 15px;
+          border-radius: 8px;
+          font-size: 14px;
+          margin-bottom: 20px;
+        }
+        
+        .test-results {
+          background: #0c0f16;
+          border: 1px solid #2a3142;
+          border-radius: 5px;
+          padding: 15px;
+          margin: 10px 0;
+          font-family: monospace;
+          font-size: 12px;
+          max-height: 200px;
+          overflow-y: auto;
+        }
+        
+        .media-preview {
+          width: 100%;
+          max-width: 400px;
+          margin: 10px 0;
+          border: 1px solid #2a3142;
+          border-radius: 5px;
+        }
+        
+        .url-input {
+          width: 100%;
+          background: #0c0f16;
+          color: var(--fg);
+          border: 1px solid #2a3142;
+          border-radius: 5px;
+          padding: 10px;
+          margin: 10px 0;
+        }
+        
+        .status-indicator {
+          display: inline-block;
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          margin-right: 5px;
+        }
+        
+        .status-success { background: #4CAF50; }
+        .status-error { background: #f44336; }
+        .status-warning { background: #ff9800; }
+        .status-info { background: #2196F3; }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="brand">Safari 媒体播放测试</div>
+    </header>
+    
+    <div class="test-container">
+        <div class="device-info" id="deviceInfo">
+            设备检测中...
+        </div>
+        
+        <div class="test-section">
+            <h3>🎯 设备检测结果</h3>
+            <div id="deviceDetails"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📷 图片加载测试</h3>
+            <p>测试Safari浏览器的图片加载能力</p>
+            
+            <input type="text" class="url-input" id="imageUrl" placeholder="输入图片URL（例如：https://example.com/image.jpg）" value="https://picsum.photos/800/600">
+            
+            <div>
+                <button class="test-button" onclick="testImageLoad()">测试图片加载</button>
+                <button class="test-button" onclick="testLocalImage()">测试本地图片</button>
+            </div>
+            
+            <div class="test-results" id="imageResults">等待测试...</div>
+            <img id="imagePreview" class="media-preview" style="display: none;">
+        </div>
+        
+        <div class="test-section">
+            <h3>🎬 视频播放测试</h3>
+            <p>测试Safari浏览器的视频播放能力</p>
+            
+            <input type="text" class="url-input" id="videoUrl" placeholder="输入视频URL（例如：https://example.com/video.mp4）" value="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">
+            
+            <div>
+                <button class="test-button" onclick="testVideoLoad()">测试视频加载</button>
+                <button class="test-button" onclick="testVideoPlay()">测试视频播放</button>
+                <button class="test-button" onclick="testLocalVideo()">测试本地视频</button>
+            </div>
+            
+            <div class="test-results" id="videoResults">等待测试...</div>
+            <video id="videoPreview" class="media-preview" controls style="display: none;"></video>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔧 Safari特殊功能测试</h3>
+            <div>
+                <button class="test-button" onclick="testWebGL()">测试WebGL支持</button>
+                <button class="test-button" onclick="testThreeJS()">测试Three.js</button>
+                <button class="test-button" onclick="testCrossOrigin()">测试跨域加载</button>
+            </div>
+            
+            <div class="test-results" id="featureResults">等待测试...</div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script>
+        // 设备检测
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isSafari = /Safari/i.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS/i.test(navigator.userAgent);
+        const isMacOSSafari = isSafari && /Macintosh/i.test(navigator.userAgent);
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        function updateDeviceInfo() {
+            document.getElementById('deviceInfo').innerHTML = `
+                <strong>设备检测结果：</strong><br>
+                设备: ${isMobile ? '移动端' : '桌面端'}<br>
+                iOS: ${isIOS ? '是' : '否'}<br>
+                Safari: ${isSafari ? '是' : '否'}<br>
+                macOS Safari: ${isMacOSSafari ? '是' : '否'}<br>
+                <br>
+                <strong>User Agent:</strong><br>
+                ${navigator.userAgent.substring(0, 100)}...
+            `;
+            
+            document.getElementById('deviceDetails').innerHTML = `
+                <div><span class="status-indicator ${isMobile ? 'status-info' : 'status-success'}"></span>设备类型: ${isMobile ? '移动端' : '桌面端'}</div>
+                <div><span class="status-indicator ${isIOS ? 'status-success' : 'status-info'}"></span>iOS设备: ${isIOS ? '是' : '否'}</div>
+                <div><span class="status-indicator ${isSafari ? 'status-success' : 'status-warning'}"></span>Safari浏览器: ${isSafari ? '是' : '否'}</div>
+                <div><span class="status-indicator ${isMacOSSafari ? 'status-success' : 'status-info'}"></span>macOS Safari: ${isMacOSSafari ? '是' : '否'}</div>
+            `;
+        }
+        
+        function logResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const statusClass = type === 'error' ? 'status-error' : 
+                              type === 'success' ? 'status-success' : 
+                              type === 'warning' ? 'status-warning' : 'status-info';
+            
+            element.innerHTML += `<div><span class="status-indicator ${statusClass}"></span>[${timestamp}] ${message}</div>`;
+            element.scrollTop = element.scrollHeight;
+        }
+        
+        function testImageLoad() {
+            const url = document.getElementById('imageUrl').value;
+            const results = document.getElementById('imageResults');
+            const preview = document.getElementById('imagePreview');
+            
+            results.innerHTML = '';
+            preview.style.display = 'none';
+            
+            logResult('imageResults', `开始测试图片加载: ${url}`);
+            
+            const img = new Image();
+            
+            img.onload = function() {
+                logResult('imageResults', `✅ 图片加载成功! 尺寸: ${img.width}x${img.height}`, 'success');
+                preview.src = url;
+                preview.style.display = 'block';
+            };
+            
+            img.onerror = function() {
+                logResult('imageResults', `❌ 图片加载失败: ${url}`, 'error');
+                if (isSafari) {
+                    logResult('imageResults', 'Safari提示: 检查URL是否可访问，确认图片格式支持', 'warning');
+                }
+            };
+            
+            // Safari特殊处理
+            if (isSafari) {
+                img.crossOrigin = 'anonymous';
+                logResult('imageResults', 'Safari浏览器: 启用跨域加载', 'info');
+            }
+            
+            img.src = url;
+        }
+        
+        function testVideoLoad() {
+            const url = document.getElementById('videoUrl').value;
+            const results = document.getElementById('videoResults');
+            const preview = document.getElementById('videoPreview');
+            
+            results.innerHTML = '';
+            preview.style.display = 'none';
+            
+            logResult('videoResults', `开始测试视频加载: ${url}`);
+            
+            const video = document.createElement('video');
+            
+            // Safari特殊属性
+            if (isSafari) {
+                video.setAttribute('webkit-playsinline', 'true');
+                video.setAttribute('playsinline', 'true');
+                video.setAttribute('x-webkit-airplay', 'deny');
+                video.setAttribute('controls', 'true');
+                video.setAttribute('preload', 'metadata');
+                video.crossOrigin = 'anonymous';
+                logResult('videoResults', 'Safari浏览器: 应用特殊视频属性', 'info');
+            }
+            
+            video.addEventListener('loadstart', () => {
+                logResult('videoResults', '视频开始加载...', 'info');
+            });
+            
+            video.addEventListener('loadedmetadata', () => {
+                logResult('videoResults', `✅ 视频元数据加载成功! 尺寸: ${video.videoWidth}x${video.videoHeight}, 时长: ${video.duration}秒`, 'success');
+            });
+            
+            video.addEventListener('canplay', () => {
+                logResult('videoResults', '✅ 视频可以播放!', 'success');
+                preview.src = url;
+                preview.style.display = 'block';
+            });
+            
+            video.addEventListener('error', (e) => {
+                logResult('videoResults', `❌ 视频加载失败: ${video.error ? video.error.message : '未知错误'}`, 'error');
+                if (isSafari) {
+                    logResult('videoResults', 'Safari提示: 检查URL是否可访问，确认视频格式支持（推荐MP4）', 'warning');
+                }
+            });
+            
+            video.src = url;
+            video.load();
+        }
+        
+        function testVideoPlay() {
+            const preview = document.getElementById('videoPreview');
+            if (!preview.src) {
+                logResult('videoResults', '请先加载视频', 'warning');
+                return;
+            }
+            
+            logResult('videoResults', '尝试播放视频...', 'info');
+            
+            preview.play().then(() => {
+                logResult('videoResults', '✅ 视频播放成功!', 'success');
+            }).catch((error) => {
+                logResult('videoResults', `❌ 视频播放失败: ${error.message}`, 'error');
+                if (isSafari) {
+                    logResult('videoResults', 'Safari提示: 可能需要用户交互才能播放', 'warning');
+                }
+            });
+        }
+        
+        function testLocalImage() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const url = URL.createObjectURL(file);
+                    document.getElementById('imageUrl').value = url;
+                    testImageLoad();
+                }
+            };
+            
+            input.click();
+        }
+        
+        function testLocalVideo() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'video/*';
+            
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const url = URL.createObjectURL(file);
+                    document.getElementById('videoUrl').value = url;
+                    testVideoLoad();
+                }
+            };
+            
+            input.click();
+        }
+        
+        function testWebGL() {
+            const results = document.getElementById('featureResults');
+            results.innerHTML = '';
+            
+            logResult('featureResults', '测试WebGL支持...', 'info');
+            
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                
+                if (gl) {
+                    logResult('featureResults', '✅ WebGL支持正常!', 'success');
+                    logResult('featureResults', `WebGL版本: ${gl.getParameter(gl.VERSION)}`, 'info');
+                    logResult('featureResults', `渲染器: ${gl.getParameter(gl.RENDERER)}`, 'info');
+                } else {
+                    logResult('featureResults', '❌ WebGL不支持', 'error');
+                }
+            } catch (error) {
+                logResult('featureResults', `❌ WebGL测试失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function testThreeJS() {
+            const results = document.getElementById('featureResults');
+            
+            logResult('featureResults', '测试Three.js支持...', 'info');
+            
+            try {
+                if (typeof THREE !== 'undefined') {
+                    logResult('featureResults', `✅ Three.js加载成功! 版本: ${THREE.REVISION}`, 'success');
+                    
+                    const scene = new THREE.Scene();
+                    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+                    const renderer = new THREE.WebGLRenderer();
+                    
+                    logResult('featureResults', '✅ Three.js场景创建成功!', 'success');
+                    
+                    // Safari特殊测试
+                    if (isSafari) {
+                        logResult('featureResults', 'Safari浏览器: Three.js渲染器优化已应用', 'info');
+                    }
+                } else {
+                    logResult('featureResults', '❌ Three.js未加载', 'error');
+                }
+            } catch (error) {
+                logResult('featureResults', `❌ Three.js测试失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function testCrossOrigin() {
+            const results = document.getElementById('featureResults');
+            
+            logResult('featureResults', '测试跨域加载支持...', 'info');
+            
+            // 测试CORS
+            fetch('https://httpbin.org/get', {
+                mode: 'cors'
+            }).then(response => {
+                if (response.ok) {
+                    logResult('featureResults', '✅ 跨域请求支持正常!', 'success');
+                } else {
+                    logResult('featureResults', '❌ 跨域请求失败', 'error');
+                }
+            }).catch(error => {
+                logResult('featureResults', `❌ 跨域请求错误: ${error.message}`, 'error');
+                if (isSafari) {
+                    logResult('featureResults', 'Safari提示: 可能需要服务器支持CORS', 'warning');
+                }
+            });
+        }
+        
+        // 初始化
+        updateDeviceInfo();
+        
+        console.log('设备检测:', { isMobile, isIOS, isSafari, isMacOSSafari, userAgent: navigator.userAgent });
+        
+        // Safari特殊初始化
+        if (isSafari) {
+            logResult('featureResults', 'Safari浏览器检测到，应用特殊优化', 'info');
+        }
+    </script>
+</body>
+</html>

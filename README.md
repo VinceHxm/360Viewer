@@ -1,208 +1,151 @@
 # 全景播放器（纯前端）
 
-一个功能丰富的纯前端全景播放器，支持加载本地与服务器上的 360° 全景图片或视频（等距柱状/equirect）。无需后端支持，可直接部署为静态网站。
+一个无需后端的纯前端全景播放器，支持加载本地与服务器上的 360° 全景图片或视频（等距柱状/equirect）。**已针对iOS设备进行全面优化**。
 
 ## ✨ 主要功能
-
-### 📁 媒体加载
-- **本地文件支持**：点击按钮或拖拽方式加载本地图片/视频
-- **服务器媒体**：支持 manifest 清单文件与直接 URL 输入
-- **格式支持**：
-  - 图片：JPG、PNG、WebP（等距柱状/equirect 全景）
-  - 视频：MP4、WebM、OGG（取决于浏览器解码能力）
-
-### 🎮 交互控制
-- **360° 视角**：鼠标拖动/触摸滑动浏览全景
-- **缩放功能**：滚轮缩放，支持 30°-100° 视野范围
-- **移动端优化**：完整的手势支持，包括双指缩放和单指拖拽
-- **键盘快捷键**：空格键播放/暂停，Esc 关闭弹窗
-
-### 🎬 视频播放控制
-- **播放控制**：播放/暂停/停止按钮
-- **进度条**：可拖拽的进度条，支持跳转到指定时间
-- **时间显示**：当前时间/总时长显示
-- **音量控制**：音量滑块和静音按钮
-- **全屏模式**：支持全屏播放，移动端优化
-
-### 🎨 画质与性能
-- **智能画质选择**：自动/低/中/高画质选项
-- **网络自适应**：根据网络速度自动调整画质
-- **加载进度**：实时显示加载进度条
-- **性能优化**：FPS 监控和渲染优化
-
-### 📱 移动端特性
-- **响应式设计**：完美适配各种屏幕尺寸
-- **触摸手势**：支持单指拖拽、双指缩放
-- **移动端优化**：隐藏不必要的控制元素，优化触摸体验
-- **全屏支持**：移动端全屏播放优化
+- 📱 **跨平台支持** - 完美支持桌面端、移动端和iOS设备
+- 🎬 **媒体播放** - 支持本地和服务器上的全景图片/视频
+- 🎮 **交互控制** - 鼠标拖动、触摸滑动、滚轮缩放
+- 🎵 **音频控制** - 音量调节、静音切换
+- 🖥️ **全屏模式** - 支持全屏观看体验
+- 🎨 **画质选择** - 自动/低/中/高画质切换
+- 📊 **性能优化** - 网络自适应、设备检测、性能监控
+- 🔄 **镜像修正** - 自动修正常见左右镜像问题
+- 📋 **媒体管理** - 支持manifest清单和直接URL输入
 
 ## 🚀 快速开始
 
 ### 本地使用
-1. **直接打开**：双击 `index.html` 即可在浏览器中运行
-2. **本地文件**：
-   - 点击"打开图片/视频"按钮选择文件
-   - 或直接将文件拖拽到页面中央区域
-3. **操作方式**：
-   - 🖱️ **桌面端**：鼠标拖动浏览，滚轮缩放
-   - 📱 **移动端**：单指拖拽浏览，双指缩放
-   - ⌨️ **快捷键**：空格键播放/暂停，Esc 关闭弹窗
+1. 直接双击 `index.html` 本地打开即可使用
+2. **本地加载**：点击"打开图片/视频"，或将文件拖入页面中间区域
+3. **服务器加载**：点击"从服务器选择"，默认读取 `/media/manifest.json`；也可直接输入完整 URL
 
-### 服务器部署
-1. **清单模式**：点击"从服务器选择"，默认读取 `/media/manifest.json`
-2. **直接 URL**：在弹窗中输入完整的图片/视频 URL
-3. **目录浏览**：启用 Nginx autoindex，复制文件 URL 使用
+### 操作指南
+- **桌面端**：鼠标拖动浏览，滚轮缩放，空格键播放/暂停
+- **移动端**：触摸滑动浏览，双指缩放，点击播放按钮
+- **iOS设备**：已优化触摸交互，支持内联播放
+- **快捷键**：Esc 关闭弹窗，空格键播放/暂停
 
-### 画质选择
-- **自动画质**：根据网络速度自动调整（推荐）
-- **低画质**：快速加载，适合慢速网络
-- **中画质**：平衡画质与加载速度
-- **高画质**：最佳画质，需要良好网络
+### 支持的格式
+- **图片**：jpg、jpeg、png、webp、gif、bmp（等距柱状/equirect 全景）
+- **视频**：mp4、webm、ogv、ogg、mov、m3u8（取决于浏览器解码能力）
 
 ## 📋 服务器媒体与清单格式
 
-### Manifest 清单文件
-默认请求路径：`/media/manifest.json`（可在弹窗中更改根路径）
+### Manifest 清单
+- **默认路径**：`/media/manifest.json`（可在弹窗中更改根路径）
+- **格式**：JSON数组，支持字符串或对象格式
 
-清单为 JSON 数组格式，支持两种元素类型：
-
-**简单格式**（字符串）：
 ```json
 [
   "samples/pano1.jpg",
-  "samples/pano-video.mp4",
-  "https://cdn.example.com/pano2.jpg"
+  { "title": "样例全景视频", "path": "samples/pano-video.mp4", "type": "video" },
+  { "title": "样例全景图片", "path": "https://cdn.example.com/pano2.jpg", "type": "image" }
 ]
 ```
 
-**详细格式**（对象）：
-```json
-[
-  {
-    "title": "样例全景视频",
-    "path": "samples/pano-video.mp4",
-    "type": "video"
-  },
-  {
-    "title": "样例全景图片",
-    "path": "https://cdn.example.com/pano2.jpg",
-    "type": "image"
-  }
-]
-```
+### 目录索引
+- 若没有清单，可启用目录索引（autoindex）
+- 从浏览器复制文件 URL 后粘贴到"打开 URL"
 
-### 目录浏览模式
-若没有清单文件，可启用 Nginx 目录索引（autoindex），从浏览器复制文件 URL 后粘贴到"打开 URL"输入框。
-
-## 🎛️ 用户界面特性
+## 🎛️ 界面与交互
 
 ### 弹窗与提示
-- **服务器选择弹窗**：支持三种关闭方式
-  - 点击右上角"关闭"按钮
-  - 点击遮罩空白区域
-  - 按 Esc 键
-- **智能提示**：
-  - 成功加载媒体后，中间提示自动隐藏
-  - 停止播放或释放资源时，提示重新显示
-  - 加载过程中显示进度条和状态信息
+- **服务器选择弹窗**：支持三种关闭方式（点击关闭、点击遮罩、按Esc）
+- **智能提示**：成功加载媒体后自动隐藏中间提示；释放/停止时恢复显示
+- **设备检测**：自动检测iOS、MIUI等设备并显示优化提示
 
 ### 镜像方向修正
 - **自动修正**：对图片与视频纹理默认应用水平翻转修正
-  - `wrapS=RepeatWrapping`
-  - `center=(0.5,0.5)`
-  - `repeat.x=-1`
-- **避免左右颠倒**：自动处理常见的镜像问题
-- **自定义支持**：如发现方向仍不符合预期，可根据素材来源与格式进行定制调整
+- **技术实现**：`wrapS=RepeatWrapping`、`center=(0.5,0.5)`、`repeat.x=-1`
+- **自定义支持**：如需其他投影模式，可提供素材信息进行定制
 
 ## 🚀 部署指南
 
 ### Nginx 部署
-1. **复制文件**：将项目所有静态文件复制到 Nginx 站点根目录
-   ```bash
-   cp -r * /usr/share/nginx/html/
-   ```
+1. **复制文件**：将项目所有静态文件复制到 Nginx 站点根目录（如 `/usr/share/nginx/html`）
+2. **配置参考**：参考 `nginx.conf` 添加相应的 `server` 配置块
+3. **媒体目录**：暴露服务器媒体目录
 
-2. **配置 Nginx**：添加或修改站点配置
-   ```nginx
-   server {
-       listen 80;
-       server_name your-domain.com;
-       root /usr/share/nginx/html;
-       index index.html;
-       
-       # 媒体文件配置
-       location /media/ {
-           autoindex on; # 启用目录浏览
-           add_header Access-Control-Allow-Origin "*" always;
-           add_header Access-Control-Allow-Methods "GET, HEAD, OPTIONS" always;
-           add_header Access-Control-Allow-Headers "*" always;
-       }
-       
-       # 静态文件缓存
-       location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
-           expires 1y;
-           add_header Cache-Control "public, immutable";
-       }
-   }
-   ```
+```nginx
+location /media/ {
+    autoindex on; # 若不想列目录可 off，并仅提供 manifest.json
+    add_header Access-Control-Allow-Origin "*" always;
+    add_header Access-Control-Allow-Methods "GET, HEAD, OPTIONS" always;
+    add_header Access-Control-Allow-Headers "*" always;
+}
+```
 
-3. **重启服务**：
-   ```bash
-   sudo nginx -t && sudo systemctl reload nginx
-   ```
+4. **重载服务**：
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
 
 ### Docker 部署
-```bash
-# 使用 Docker 挂载媒体目录
-docker run -d \
-  --name nginx-panorama \
-  -p 80:80 \
-  -v /path/to/media:/usr/share/nginx/html/media \
-  -v /path/to/project:/usr/share/nginx/html \
-  nginx:alpine
-```
+- 可通过 Docker 将宿主机目录挂载到 `/usr/share/nginx/html/media/`
+- 确保 `root` 路径指向实际部署目录
 
-### 其他部署方式
-- **Apache**：配置虚拟主机，启用 mod_rewrite
-- **CDN**：上传到 CDN 服务，配置 CORS 头
-- **静态托管**：支持 GitHub Pages、Netlify、Vercel 等
+## 📱 iOS设备优化
 
-## 🔧 技术架构
-
-### 核心技术
-- **Three.js**：WebGL 3D 图形库，版本 0.160.0
-- **全景渲染**：通过 `TextureLoader`/`VideoTexture` 将全景资源贴在内表面球体上
-- **纯前端**：无需后端支持，完全静态资源部署
+### 特殊优化
+- **WebGL渲染**：针对iOS设备的特殊渲染设置
+- **触摸交互**：优化触摸手势和滑动体验
+- **视频播放**：支持内联播放，避免跳转系统播放器
+- **性能优化**：降低渲染复杂度，提高流畅度
+- **自动播放**：适配iOS的媒体播放限制
 
 ### 技术特性
-- **WebGL 渲染**：硬件加速的 3D 渲染
-- **响应式设计**：CSS Grid + Flexbox 布局
-- **移动端优化**：触摸事件处理和手势识别
-- **性能监控**：FPS 监控和渲染优化
-- **网络优化**：智能画质选择和加载进度显示
+- 设备自动检测（iOS、Safari、MIUI等）
+- 智能画质选择（根据网络状况自动调整）
+- 触摸事件优化（防止页面滚动冲突）
+- 硬件加速支持
 
-### 浏览器兼容性
-- **现代浏览器**：Chrome 60+、Firefox 55+、Safari 12+、Edge 79+
-- **移动浏览器**：iOS Safari 12+、Android Chrome 60+
-- **WebGL 支持**：需要 WebGL 1.0 或 2.0 支持
+详细优化说明请参考 [IOS_OPTIMIZATION.md](./IOS_OPTIMIZATION.md)
 
-### 文件结构
+## 🔧 技术说明
+
+### 核心技术
+- **Three.js**：通过 `TextureLoader`/`VideoTexture` 将全景资源贴在内表面球体上实现 360° 观看
+- **WebGL**：硬件加速的3D渲染
+- **纯前端**：完全静态资源，无需任何打包与构建流程
+
+### 性能特性
+- **自适应渲染**：根据设备性能自动调整渲染质量
+- **网络优化**：根据网络状况自动选择画质
+- **内存管理**：智能释放纹理和媒体资源
+- **FPS监控**：实时性能监控和优化
+
+### 兼容性
+- **桌面端**：Chrome、Firefox、Safari、Edge
+- **移动端**：iOS Safari、Android Chrome、MIUI浏览器
+- **格式支持**：主流图片和视频格式
+
+## 📁 项目结构
+
 ```
-360Video/
 ├── index.html          # 主页面
-├── main.js            # 核心逻辑
+├── main.js            # 核心JavaScript代码
 ├── styles.css         # 样式文件
-├── test.html          # 测试页面
-└── README.md          # 说明文档
+├── nginx.conf         # Nginx配置示例
+├── docker-compose.yml # Docker部署配置
+├── README.md          # 项目说明
+├── IOS_OPTIMIZATION.md # iOS优化详细说明
+└── media/             # 媒体文件目录
+    └── manifest.json  # 媒体清单文件
 ```
 
-## 📄 许可证
-本项目采用 MIT 许可证，可自由使用、修改和分发。
+## 🎯 使用场景
+
+- **虚拟旅游**：展示景点、酒店、房产等全景内容
+- **教育培训**：沉浸式学习体验
+- **产品展示**：360°产品展示
+- **娱乐体验**：全景视频观看
+- **VR内容**：WebVR应用开发
 
 ## 🤝 贡献
-欢迎提交 Issue 和 Pull Request 来改进项目！
 
-## 📞 支持
-如有问题或建议，请通过以下方式联系：
-- 提交 GitHub Issue
-- 发送邮件反馈
+欢迎提交Issue和Pull Request来改进这个项目！
+
+## 📄 许可证
+
+MIT License - 详见LICENSE文件

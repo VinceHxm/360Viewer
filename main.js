@@ -100,6 +100,8 @@
   // 浏览器检测
   let isMIUI = false;
   let isXiaomi = false;
+  let isIOS = false;
+  let isSafari = false;
 
   init();
   animate();
@@ -108,12 +110,63 @@
     // 检测移动端
     isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
+    // 检测iOS设备
+    isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+    // 检测Safari浏览器（包括macOS Safari）
+    isSafari = /Safari/i.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS/i.test(navigator.userAgent);
+    
+    // 检测macOS Safari
+    const isMacOSSafari = isSafari && /Macintosh/i.test(navigator.userAgent);
+    
     // 检测MIUI浏览器和小米设备
     isMIUI = /MiuiBrowser|MIUI/i.test(navigator.userAgent) || 
              (isMobile && /Xiaomi|Redmi/i.test(navigator.userAgent));
     isXiaomi = /Xiaomi|Redmi|MIUI/i.test(navigator.userAgent);
     
-    console.log('设备检测:', { isMobile, isMIUI, isXiaomi, userAgent: navigator.userAgent });
+    console.log('设备检测:', { isMobile, isIOS, isSafari, isMacOSSafari, isMIUI, isXiaomi, userAgent: navigator.userAgent });
+    
+    // Safari浏览器特殊提示（包括iOS和macOS）
+    if (isIOS || isMacOSSafari) {
+      console.log('检测到iOS设备，应用iOS优化设置');
+      
+      // 显示iOS用户提示
+      setTimeout(() => {
+        const tip = document.createElement('div');
+        tip.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(0,0,0,0.8);
+          color: white;
+          padding: 20px;
+          border-radius: 10px;
+          z-index: 10000;
+          text-align: center;
+          max-width: 300px;
+          font-size: 14px;
+        `;
+        const deviceType = isIOS ? 'iOS设备' : 'macOS Safari';
+        tip.innerHTML = `
+          <div>检测到${deviceType}</div>
+          <div style="margin-top: 10px; font-size: 12px;">
+            Safari优化已启用：<br>
+            1. 视频内联播放<br>
+            2. 触摸手势优化<br>
+            3. 自动播放策略适配<br>
+            4. 右侧边栏优化
+          </div>
+          <button onclick="this.parentElement.remove()" style="margin-top: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 5px;">知道了</button>
+        `;
+        document.body.appendChild(tip);
+        
+        // 5秒后自动关闭
+        setTimeout(() => {
+          if (tip.parentElement) tip.remove();
+        }, 5000);
+      }, 2000);
+    }
     
     // MIUI浏览器特殊提示
     if (isMIUI || isXiaomi) {
@@ -162,15 +215,31 @@
     camera = new THREE.PerspectiveCamera(fov, viewerEl.clientWidth / viewerEl.clientHeight, 0.1, 1100);
     camera.target = new THREE.Vector3(0, 0, 0);
 
-    renderer = new THREE.WebGLRenderer({ 
+    // iOS设备特殊WebGL设置
+    const webglOptions = {
       antialias: !isMobile, // 移动端关闭抗锯齿提高性能
       alpha: true,
       powerPreference: isMobile ? "low-power" : "high-performance",
       preserveDrawingBuffer: false
-    });
+    };
+    
+    // iOS设备特殊处理
+    if (isIOS) {
+      webglOptions.antialias = false; // iOS设备关闭抗锯齿
+      webglOptions.powerPreference = "low-power"; // iOS设备使用低功耗模式
+      webglOptions.preserveDrawingBuffer = true; // iOS设备保持绘制缓冲区
+    }
+    
+    renderer = new THREE.WebGLRenderer(webglOptions);
     
     // 移动端优化像素比
-    const pixelRatio = isMobile ? Math.min(window.devicePixelRatio || 1, 1.5) : Math.min(window.devicePixelRatio || 1, 2);
+    let pixelRatio = isMobile ? Math.min(window.devicePixelRatio || 1, 1.5) : Math.min(window.devicePixelRatio || 1, 2);
+    
+    // iOS设备特殊像素比处理
+    if (isIOS) {
+      pixelRatio = Math.min(window.devicePixelRatio || 1, 1); // iOS设备限制像素比
+    }
+    
     renderer.setPixelRatio(pixelRatio);
     renderer.setSize(viewerEl.clientWidth, viewerEl.clientHeight);
     
@@ -179,11 +248,24 @@
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NoToneMapping;
     
+    // iOS设备特殊渲染设置
+    if (isIOS) {
+      renderer.sortObjects = false; // iOS设备禁用对象排序
+      renderer.autoClear = true; // iOS设备启用自动清除
+    }
+    
     viewerEl.appendChild(renderer.domElement);
 
     // 移动端优化球体几何体 - 进一步减少面数
-    const sphereSegments = isMobile ? 24 : 32;
-    const sphereRings = isMobile ? 16 : 24;
+    let sphereSegments = isMobile ? 24 : 32;
+    let sphereRings = isMobile ? 16 : 24;
+    
+    // iOS设备特殊优化
+    if (isIOS) {
+      sphereSegments = 16; // iOS设备进一步减少面数
+      sphereRings = 12;
+    }
+    
     const sphere = new THREE.SphereGeometry(500, sphereSegments, sphereRings);
     // 反转法线，用 BackSide 在内侧查看
     const material = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
@@ -197,8 +279,27 @@
     window.addEventListener('resize', onResize);
     onResize();
     
+    // Safari浏览器特殊resize处理
+    if (isIOS || isSafari) {
+      window.addEventListener('resize', () => {
+        setTimeout(() => {
+          const sidebar = document.getElementById('sidebar');
+          if (sidebar && sidebar.offsetWidth === 0) {
+            console.log('Safari浏览器resize后修复sidebar');
+            sidebar.style.display = 'flex';
+            sidebar.style.width = 'clamp(200px, 35vw, 300px)';
+          }
+        }, 100);
+      });
+    }
+    
     // 初始化网络优化
     initNetworkOptimization();
+    
+    // Safari浏览器特殊初始化（包括iOS和macOS）
+    if (isIOS || isSafari) {
+      initSafariOptimizations();
+    }
   }
 
   function bindInteractions() {
@@ -481,6 +582,39 @@
     }
   }
 
+  // Safari浏览器特殊优化初始化（包括iOS和macOS）
+  function initSafariOptimizations() {
+    console.log('初始化Safari浏览器优化');
+    
+    // 确保sidebar在iOS设备上可见
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+      sidebar.style.display = 'flex';
+      sidebar.style.visibility = 'visible';
+      sidebar.style.opacity = '1';
+      sidebar.style.position = 'absolute';
+      sidebar.style.right = '0';
+      sidebar.style.top = '0';
+      sidebar.style.bottom = '0';
+      sidebar.style.zIndex = '100';
+      sidebar.style.width = 'clamp(200px, 35vw, 300px)';
+      
+      // 强制重绘
+      sidebar.style.transform = 'translateZ(0)';
+      sidebar.style.webkitTransform = 'translateZ(0)';
+    }
+    
+    // 延迟检查sidebar是否可见
+    setTimeout(() => {
+      if (sidebar && sidebar.offsetWidth === 0) {
+        console.warn('Safari浏览器sidebar不可见，尝试修复');
+        sidebar.style.display = 'flex';
+        sidebar.style.width = '250px';
+        sidebar.style.minWidth = '200px';
+      }
+    }, 100);
+  }
+
   // 网络优化相关函数
   function initNetworkOptimization() {
     // 检测网络连接
@@ -636,6 +770,12 @@
     startX = touch.clientX;
     startY = touch.clientY;
     
+    // iOS设备特殊处理
+    if (isIOS) {
+      // iOS设备禁用默认的触摸行为
+      e.stopPropagation();
+    }
+    
     // 检测多点触控（双指缩放）
     if (e.touches.length === 2) {
       const touch1 = e.touches[0];
@@ -656,6 +796,11 @@
   function onTouchMove(e) {
     e.preventDefault();
     
+    // iOS设备特殊处理
+    if (isIOS) {
+      e.stopPropagation();
+    }
+    
     if (e.touches.length === 2) {
       // 双指缩放
       const touch1 = e.touches[0];
@@ -667,7 +812,9 @@
       
       if (isGestureActive && lastTouchDistance > 0) {
         const scale = currentDistance / lastTouchDistance;
-        const deltaFov = (scale - 1) * 20; // 缩放灵敏度
+        // iOS设备调整缩放灵敏度
+        const sensitivity = isIOS ? 15 : 20;
+        const deltaFov = (scale - 1) * sensitivity;
         fov = THREE.MathUtils.clamp(fov - deltaFov, 30, 100);
         camera.fov = fov;
         camera.updateProjectionMatrix();
@@ -687,8 +834,12 @@
     const moveDistance = Math.sqrt(dx * dx + dy * dy);
     const timeElapsed = Date.now() - touchStartTime;
     
+    // iOS设备调整滑动检测阈值
+    const threshold = isIOS ? 30 : 50;
+    const timeThreshold = isIOS ? 150 : 100;
+    
     // 如果是快速滑动（可能是页面滚动），不触发视角变化
-    if (timeElapsed < 100 && moveDistance > 50) {
+    if (timeElapsed < timeThreshold && moveDistance > threshold) {
       return;
     }
     
@@ -696,7 +847,7 @@
     startY = touch.clientY;
     
     // 移动端降低灵敏度，减少卡顿
-    const sensitivity = 0.05;
+    const sensitivity = isIOS ? 0.03 : 0.05; // iOS设备进一步降低灵敏度
     targetLon -= dx * sensitivity;
     targetLat += dy * sensitivity;
     targetLat = THREE.MathUtils.clamp(targetLat, -85, 85);
@@ -704,6 +855,11 @@
   
   function onTouchEnd(e) {
     e.preventDefault();
+    
+    // iOS设备特殊处理
+    if (isIOS) {
+      e.stopPropagation();
+    }
     
     isPointerDown = false;
     isGestureActive = false;
@@ -742,7 +898,13 @@
     }
     
     // 移动端优化插值，减少卡顿
-    const baseLerpFactor = isMobile ? 0.08 : 0.15;
+    let baseLerpFactor = isMobile ? 0.08 : 0.15;
+    
+    // iOS设备特殊插值优化
+    if (isIOS) {
+      baseLerpFactor = 0.05; // iOS设备使用更低的插值因子
+    }
+    
     const lerpFactor = Math.min(baseLerpFactor, fps / 400); // 根据FPS调整插值速度
     lon += (targetLon - lon) * lerpFactor;
     lat += (targetLat - lat) * lerpFactor;
@@ -761,8 +923,18 @@
     }
     
     // 移动端减少渲染频率
-    if (isMobile && fps < 30) {
-      // 跳帧渲染
+    if (isIOS) {
+      // iOS设备特殊渲染策略
+      if (fps < 25) {
+        // iOS设备低FPS时跳帧渲染
+        if (frameCount % 2 === 0) {
+          renderer.render(scene, camera);
+        }
+      } else {
+        renderer.render(scene, camera);
+      }
+    } else if (isMobile && fps < 30) {
+      // 其他移动端跳帧渲染
       if (frameCount % 2 === 0) {
         renderer.render(scene, camera);
       }
@@ -1058,8 +1230,16 @@
     console.log('原始URL:', url);
     console.log('优化URL:', optimizedUrl);
     console.log('当前画质:', currentQuality);
+    console.log('iOS设备:', isIOS);
+    console.log('Safari浏览器:', isSafari);
     
     const loader = new THREE.TextureLoader();
+    
+    // Safari浏览器特殊处理（包括iOS和macOS）
+    if (isIOS || isSafari) {
+      // Safari浏览器使用更保守的加载策略
+      loader.setCrossOrigin('anonymous');
+    }
     
     // 添加进度监听
     loader.load(
@@ -1069,10 +1249,19 @@
         
         // 优化纹理设置
         texture.colorSpace = THREE.SRGBColorSpace;
-        texture.generateMipmaps = true;
-        texture.minFilter = THREE.LinearMipmapLinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+        
+        // Safari浏览器特殊纹理设置（包括iOS和macOS）
+        if (isIOS || isSafari) {
+          texture.generateMipmaps = false; // Safari浏览器禁用mipmaps提高性能
+          texture.minFilter = THREE.LinearFilter;
+          texture.magFilter = THREE.LinearFilter;
+          texture.anisotropy = 1; // Safari浏览器限制各向异性
+        } else {
+          texture.generateMipmaps = true;
+          texture.minFilter = THREE.LinearMipmapLinearFilter;
+          texture.magFilter = THREE.LinearFilter;
+          texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+        }
         
         // 修正镜像：水平翻转
         texture.wrapS = THREE.RepeatWrapping;
@@ -1115,8 +1304,16 @@
       },
       (err) => {
         console.error('图片加载失败:', err);
+        console.error('Safari浏览器:', isSafari);
+        console.error('iOS设备:', isIOS);
         showLoadingProgress(false);
-        alert('图片加载失败: ' + (err.message || '未知错误'));
+        
+        let errorMessage = '图片加载失败: ' + (err.message || '未知错误');
+        if (isSafari) {
+          errorMessage += '\n\nSafari浏览器提示：\n1. 检查图片URL是否可访问\n2. 确认图片格式是否支持\n3. 检查CORS设置';
+        }
+        
+        alert(errorMessage);
         URL.revokeObjectURL(url);
       }
     );
@@ -1143,6 +1340,21 @@
     videoEl.playsInline = true;
     videoEl.volume = lastVolume / 100; // 设置默认音量为40%
     
+    // Safari浏览器特殊视频属性（包括iOS和macOS）
+    if (isIOS || isSafari) {
+      videoEl.setAttribute('webkit-playsinline', 'true');
+      videoEl.setAttribute('playsinline', 'true');
+      videoEl.setAttribute('x-webkit-airplay', 'deny');
+      videoEl.setAttribute('controls', 'false');
+      videoEl.setAttribute('disablepictureinpicture', 'true');
+      videoEl.setAttribute('preload', 'metadata');
+      
+      // iOS设备默认静音以避免自动播放限制
+      if (isIOS) {
+        videoEl.muted = true;
+      }
+    }
+    
     // 根据画质和网络状况调整预加载策略
     if (currentQuality === 'low' || networkSpeed === 'slow-2g' || networkSpeed === '2g') {
       videoEl.preload = 'metadata'; // 低画质时只预加载元数据
@@ -1156,18 +1368,35 @@
     }
     
     // 移动端兼容性设置
-    videoEl.setAttribute('webkit-playsinline', 'true');
-    videoEl.setAttribute('playsinline', 'true');
-    videoEl.setAttribute('x5-video-player-type', 'h5');
-    videoEl.setAttribute('x5-video-player-fullscreen', 'false');
-    videoEl.setAttribute('x5-video-orientation', 'portrait');
+    if (!isIOS && !isSafari) {
+      videoEl.setAttribute('webkit-playsinline', 'true');
+      videoEl.setAttribute('playsinline', 'true');
+      videoEl.setAttribute('x5-video-player-type', 'h5');
+      videoEl.setAttribute('x5-video-player-fullscreen', 'false');
+      videoEl.setAttribute('x5-video-orientation', 'portrait');
+    }
     
     // 移动端视频优化
     if (isMobile) {
       videoEl.preload = 'metadata'; // 减少初始加载
       
+      // Safari浏览器特殊处理（包括iOS和macOS）
+      if (isIOS || isSafari) {
+        console.log('检测到Safari浏览器，应用Safari视频优化');
+        videoEl.setAttribute('webkit-playsinline', 'true');
+        videoEl.setAttribute('playsinline', 'true');
+        videoEl.setAttribute('x-webkit-airplay', 'deny');
+        videoEl.setAttribute('controls', 'false');
+        videoEl.setAttribute('disablepictureinpicture', 'true');
+        videoEl.setAttribute('preload', 'metadata');
+        
+        // iOS设备默认静音
+        if (isIOS) {
+          videoEl.muted = true;
+        }
+      }
       // MIUI浏览器特殊处理
-      if (isMIUI || isXiaomi) {
+      else if (isMIUI || isXiaomi) {
         console.log('检测到MIUI浏览器，应用特殊设置');
         videoEl.setAttribute('x5-video-player-type', 'h5');
         videoEl.setAttribute('x5-video-player-fullscreen', 'false');
@@ -1238,14 +1467,49 @@
       showLoadingProgress(false);
       
       // 自动播放策略
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      
-      if (isMobile) {
-        // 移动端：不自动播放，等待用户点击
+      if (isIOS) {
+        // iOS设备：不自动播放，等待用户点击
+        updatePlayButtonIcon(false);
+        console.log('iOS设备检测到，等待用户手动播放');
+        // iOS设备保持静音状态，用户点击播放后可以手动开启声音
+        videoEl.muted = true;
+        const volumeSlider = document.querySelector('.volume-slider');
+        if (volumeSlider) {
+          volumeSlider.value = 0;
+        }
+        updateMuteButton();
+      } else if (isSafari) {
+        // macOS Safari：尝试自动播放（静音模式）
+        updatePlayButtonIcon(false);
+        console.log('macOS Safari检测到，尝试自动播放');
+        videoEl.muted = true; // 先静音播放
+        videoEl.play().then(() => {
+          updatePlayButtonIcon(true);
+          console.log('macOS Safari自动播放成功');
+          // 播放成功后，恢复音量
+          setTimeout(() => {
+            videoEl.muted = false;
+            videoEl.volume = lastVolume / 100;
+            const volumeSlider = document.querySelector('.volume-slider');
+            if (volumeSlider) {
+              volumeSlider.value = lastVolume;
+            }
+            updateMuteButton();
+          }, 100);
+        }).catch((error) => {
+          updatePlayButtonIcon(false);
+          console.log('macOS Safari自动播放失败，等待用户手动播放:', error);
+          // 如果自动播放失败，恢复音量设置
+          videoEl.muted = false;
+          videoEl.volume = lastVolume / 100;
+          updateMuteButton();
+        });
+      } else if (isMobile) {
+        // 其他移动端：不自动播放，等待用户点击
         updatePlayButtonIcon(false);
         console.log('移动端检测到，等待用户手动播放');
       } else {
-        // 桌面端：尝试自动播放（静音模式）
+        // 其他桌面端：尝试自动播放（静音模式）
         videoEl.muted = true; // 先静音播放
         videoEl.play().then(() => {
           updatePlayButtonIcon(true);
@@ -1316,8 +1580,16 @@
       console.error('视频加载错误:', e);
       console.error('视频URL:', optimizedUrl);
       console.error('错误详情:', videoEl.error);
+      console.error('Safari浏览器:', isSafari);
+      console.error('iOS设备:', isIOS);
       showLoadingProgress(false);
-      alert('视频加载失败: ' + (videoEl.error ? videoEl.error.message : '未知错误'));
+      
+      let errorMessage = '视频加载失败: ' + (videoEl.error ? videoEl.error.message : '未知错误');
+      if (isSafari) {
+        errorMessage += '\n\nSafari浏览器提示：\n1. 检查视频URL是否可访问\n2. 确认视频格式是否支持（推荐MP4）\n3. 检查CORS设置\n4. 尝试刷新页面';
+      }
+      
+      alert(errorMessage);
       URL.revokeObjectURL(url);
     }, { once: true });
     
@@ -1414,6 +1686,16 @@
         sidebar.style.display = 'none';
       } else {
         sidebar.style.display = 'flex';
+        // Safari浏览器特殊处理：确保sidebar可见
+        if (isIOS || isSafari) {
+          sidebar.style.visibility = 'visible';
+          sidebar.style.opacity = '1';
+          sidebar.style.position = 'absolute';
+          sidebar.style.right = '0';
+          sidebar.style.top = '0';
+          sidebar.style.bottom = '0';
+          sidebar.style.zIndex = '100';
+        }
       }
     }
     
