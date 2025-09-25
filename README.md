@@ -146,6 +146,4 @@ sudo nginx -t && sudo systemctl reload nginx
 
 欢迎提交Issue和Pull Request来改进这个项目！
 
-## 📄 许可证
 
-MIT License - 详见LICENSE文件
