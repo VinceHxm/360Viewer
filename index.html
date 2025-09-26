@@ -35,9 +35,17 @@
 
     <main id="viewer" class="viewer" tabindex="0">
       <div class="hint">
-        将全景图片或视频拖拽到此处，或点击“打开图片/视频”
+        将全景图片或视频拖拽到此处，或点击"打开图片/视频"
       </div>
       <!-- three.js renderer 将在此处注入 -->
+      
+      <!-- 右侧栏显隐按钮 -->
+      <button id="sidebarToggle" class="sidebar-toggle" title="显示/隐藏侧边栏">
+        <svg class="sidebar-toggle-icon" viewBox="0 0 24 24">
+          <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+        </svg>
+      </button>
+      
       <aside class="sidebar" id="sidebar">
         <div class="sidebar__header">
           <input id="sidebarBaseInput" class="text" placeholder="列表根路径（默认 /media/）" />

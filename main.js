@@ -56,6 +56,8 @@
   const fullscreenButton = document.getElementById('fullscreenButton');
   /** @type {HTMLButtonElement} */
   const muteButton = document.getElementById('muteButton');
+  /** @type {HTMLButtonElement} */
+  const sidebarToggle = document.getElementById('sidebarToggle');
 
   let scene, camera, renderer;
   let sphereMesh = null;
@@ -94,8 +96,12 @@
   let isMuted = false;
   let lastVolume = 40; // 默认音量40%
   
-  // 全屏状态
-  let isFullscreen = false;
+  // iOS 高灵敏度模式
+  let iosHighSensitivity = false;
+  let lastTouchEndTime = 0;
+  
+  // 侧边栏状态
+  let isSidebarVisible = true;
   
   // 浏览器检测
   let isMIUI = false;
@@ -103,6 +109,7 @@
   let isIOS = false;
   let isSafari = false;
   let isMacOSSafari = false;
+  let isAndroid = false;
 
   init();
   animate();
@@ -121,7 +128,7 @@
     isMacOSSafari = isSafari && /Macintosh/i.test(navigator.userAgent);
     
     // 检测安卓设备
-    const isAndroid = /Android/i.test(navigator.userAgent);
+    isAndroid = /Android/i.test(navigator.userAgent);
     
     // 检测MIUI浏览器和小米设备
     isMIUI = /MiuiBrowser|MIUI/i.test(navigator.userAgent) || 
@@ -356,6 +363,17 @@
     if (isIOS || isMacOSSafari) {
       initSafariOptimizations();
     }
+    
+  // iOS Safari 全屏支持检测
+  if (isIOS) {
+    checkIOSFullscreenSupport();
+  }
+  
+  // 屏幕尺寸检测和自适应
+  initResponsiveDesign();
+  
+  // 屏蔽Safari下滑退出全屏
+  preventSafariSwipeDown();
   }
 
   function bindInteractions() {
@@ -382,8 +400,8 @@
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     
-    // 移动端触摸支持 - 使用专门的手势处理
-    if (isMobile) {
+    // 触摸支持 - 移动端和Safari浏览器都需要
+    if (isMobile || isSafari) {
       renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false });
       renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: false });
       renderer.domElement.addEventListener('touchend', onTouchEnd, { passive: false });
@@ -493,6 +511,42 @@
     // 静音按钮
     if (muteButton) {
       muteButton.addEventListener('click', toggleMute);
+    }
+    
+    // 侧边栏显隐按钮
+    if (sidebarToggle) {
+      console.log('侧边栏显隐按钮已找到');
+      sidebarToggle.addEventListener('click', toggleSidebar);
+      
+      // iOS设备添加触摸事件支持
+      if (isIOS) {
+        sidebarToggle.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          toggleSidebar();
+        });
+      }
+    } else {
+      console.error('侧边栏显隐按钮未找到！');
+      
+      // Safari特殊处理：延迟查找按钮
+      if (isIOS || isMacOSSafari) {
+        setTimeout(() => {
+          const delayedSidebarToggle = document.getElementById('sidebarToggle');
+          if (delayedSidebarToggle) {
+            console.log('Safari延迟找到侧边栏显隐按钮');
+            delayedSidebarToggle.addEventListener('click', toggleSidebar);
+            
+            if (isIOS) {
+              delayedSidebarToggle.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                toggleSidebar();
+              });
+            }
+          } else {
+            console.error('Safari中仍然无法找到侧边栏显隐按钮');
+          }
+        }, 100);
+      }
     }
     
     // 进度条悬停提示
@@ -670,6 +724,193 @@
       }
     }, 100);
   }
+  
+  // iOS Safari 全屏支持检测
+  function checkIOSFullscreenSupport() {
+    console.log('检测 iOS Safari 全屏支持');
+    
+    // 检测全屏 API 支持
+    const hasFullscreenAPI = !!(viewerEl.webkitRequestFullscreen || viewerEl.requestFullscreen);
+    console.log('iOS Safari 全屏 API 支持:', hasFullscreenAPI);
+    
+    // 检测 webkitRequestFullscreen 支持
+    const hasWebkitFullscreen = !!viewerEl.webkitRequestFullscreen;
+    console.log('iOS Safari webkitRequestFullscreen 支持:', hasWebkitFullscreen);
+    
+    // 检测退出全屏 API 支持
+    const hasExitFullscreen = !!(document.webkitExitFullscreen || document.exitFullscreen);
+    console.log('iOS Safari 退出全屏 API 支持:', hasExitFullscreen);
+    
+    // 如果原生全屏 API 不可用，显示提示
+    if (!hasFullscreenAPI) {
+      console.log('iOS Safari 原生全屏 API 不可用，将使用 CSS 模拟全屏');
+      
+      // 可选：显示用户提示
+      setTimeout(() => {
+        const tip = document.createElement('div');
+        tip.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(0,0,0,0.8);
+          color: white;
+          padding: 15px 20px;
+          border-radius: 8px;
+          font-size: 14px;
+          text-align: center;
+          z-index: 10000;
+          max-width: 300px;
+        `;
+        tip.innerHTML = `
+          <div>iOS Safari 全屏模式</div>
+          <div style="margin-top: 10px; font-size: 12px;">
+            将使用优化的全屏体验
+          </div>
+        `;
+        document.body.appendChild(tip);
+        
+        setTimeout(() => {
+          if (tip.parentNode) {
+            tip.parentNode.removeChild(tip);
+          }
+        }, 3000);
+      }, 2000);
+    }
+  }
+  
+  // 屏幕尺寸检测和自适应
+  function initResponsiveDesign() {
+    console.log('初始化响应式设计');
+    
+    // 检测当前屏幕尺寸
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    
+    console.log('屏幕信息:', {
+      width: screenWidth,
+      height: screenHeight,
+      pixelRatio: devicePixelRatio,
+      isMobile: isMobile,
+      isIOS: isIOS,
+      isAndroid: isAndroid
+    });
+    
+    // 根据屏幕尺寸应用不同的优化
+    if (screenWidth <= 320) {
+      console.log('检测到超小屏幕设备 (≤320px)');
+      applyUltraSmallScreenOptimizations();
+    } else if (screenWidth <= 480) {
+      console.log('检测到小屏幕设备 (≤480px)');
+      applySmallScreenOptimizations();
+    } else if (screenWidth <= 768) {
+      console.log('检测到中等屏幕设备 (≤768px)');
+      applyMediumScreenOptimizations();
+    } else if (screenWidth <= 1024) {
+      console.log('检测到平板设备 (≤1024px)');
+      applyTabletOptimizations();
+    } else {
+      console.log('检测到桌面设备 (>1024px)');
+      applyDesktopOptimizations();
+    }
+    
+    // 监听屏幕尺寸变化
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        const newWidth = window.innerWidth;
+        console.log('屏幕尺寸变化:', newWidth);
+        
+        // 重新应用优化
+        if (newWidth <= 320) {
+          applyUltraSmallScreenOptimizations();
+        } else if (newWidth <= 480) {
+          applySmallScreenOptimizations();
+        } else if (newWidth <= 768) {
+          applyMediumScreenOptimizations();
+        } else if (newWidth <= 1024) {
+          applyTabletOptimizations();
+        } else {
+          applyDesktopOptimizations();
+        }
+        
+        // 重新计算viewer高度
+        onResize();
+      }, 250);
+    });
+  }
+  
+  // 超小屏幕优化
+  function applyUltraSmallScreenOptimizations() {
+    console.log('应用超小屏幕优化');
+    
+    // 调整触摸灵敏度
+    if (isIOS) {
+      iosHighSensitivity = true; // 超小屏幕默认开启高灵敏度
+    }
+    
+    // 调整球体几何体
+    if (sphereMesh) {
+      const geometry = sphereMesh.geometry;
+      geometry.dispose();
+      const newGeometry = new THREE.SphereGeometry(500, 12, 8); // 进一步减少面数
+      sphereMesh.geometry = newGeometry;
+    }
+  }
+  
+  // 小屏幕优化
+  function applySmallScreenOptimizations() {
+    console.log('应用小屏幕优化');
+    
+    // 调整球体几何体
+    if (sphereMesh) {
+      const geometry = sphereMesh.geometry;
+      geometry.dispose();
+      const newGeometry = new THREE.SphereGeometry(500, 16, 10); // 减少面数
+      sphereMesh.geometry = newGeometry;
+    }
+  }
+  
+  // 中等屏幕优化
+  function applyMediumScreenOptimizations() {
+    console.log('应用中等屏幕优化');
+    
+    // 使用移动端默认设置
+    if (sphereMesh) {
+      const geometry = sphereMesh.geometry;
+      geometry.dispose();
+      const newGeometry = new THREE.SphereGeometry(500, 24, 16); // 移动端面数
+      sphereMesh.geometry = newGeometry;
+    }
+  }
+  
+  // 平板优化
+  function applyTabletOptimizations() {
+    console.log('应用平板优化');
+    
+    // 使用中等面数
+    if (sphereMesh) {
+      const geometry = sphereMesh.geometry;
+      geometry.dispose();
+      const newGeometry = new THREE.SphereGeometry(500, 28, 20); // 平板面数
+      sphereMesh.geometry = newGeometry;
+    }
+  }
+  
+  // 桌面优化
+  function applyDesktopOptimizations() {
+    console.log('应用桌面优化');
+    
+    // 使用最高面数
+    if (sphereMesh) {
+      const geometry = sphereMesh.geometry;
+      geometry.dispose();
+      const newGeometry = new THREE.SphereGeometry(500, 32, 24); // 桌面端面数
+      sphereMesh.geometry = newGeometry;
+    }
+  }
 
   // 网络优化相关函数
   function initNetworkOptimization() {
@@ -842,6 +1083,12 @@
       );
       lastTouchDistance = touchStartDistance;
       isGestureActive = true;
+      
+      // macOS Safari调试日志
+      if (isMacOSSafari) {
+        console.log('macOS Safari双指触摸开始:', { touchStartDistance });
+      }
+      
       return;
     }
     
@@ -868,12 +1115,24 @@
       
       if (isGestureActive && lastTouchDistance > 0) {
         const scale = currentDistance / lastTouchDistance;
-        // iOS设备调整缩放灵敏度
-        const sensitivity = isIOS ? 15 : 20;
+        // 不同设备的缩放灵敏度调整
+        let sensitivity;
+        if (isIOS) {
+          sensitivity = 15;  // iOS设备
+        } else if (isMacOSSafari) {
+          sensitivity = 25;  // macOS Safari
+        } else {
+          sensitivity = 20;  // 其他设备
+        }
         const deltaFov = (scale - 1) * sensitivity;
         fov = THREE.MathUtils.clamp(fov - deltaFov, 30, 100);
         camera.fov = fov;
         camera.updateProjectionMatrix();
+        
+        // macOS Safari调试日志
+        if (isMacOSSafari) {
+          console.log('macOS Safari双指缩放:', { scale, deltaFov, fov, sensitivity });
+        }
       }
       
       lastTouchDistance = currentDistance;
@@ -903,7 +1162,13 @@
     startY = touch.clientY;
     
     // 移动端降低灵敏度，减少卡顿
-    const sensitivity = isIOS ? 0.03 : 0.05; // iOS设备进一步降低灵敏度
+    let sensitivity;
+    if (isIOS) {
+      // iOS设备支持高灵敏度模式
+      sensitivity = iosHighSensitivity ? 0.08 : 0.06; // 高灵敏度模式使用桌面端相同的灵敏度
+    } else {
+      sensitivity = 0.05; // 其他移动端
+    }
     targetLon -= dx * sensitivity;
     targetLat += dy * sensitivity;
     targetLat = THREE.MathUtils.clamp(targetLat, -85, 85);
@@ -915,12 +1180,166 @@
     // iOS设备特殊处理
     if (isIOS) {
       e.stopPropagation();
+      
+      // iOS设备双击切换高灵敏度模式
+      if (e.touches.length === 0) { // 所有手指都离开
+        const now = Date.now();
+        if (now - lastTouchEndTime < 300) { // 300ms内双击
+          iosHighSensitivity = !iosHighSensitivity;
+          console.log('iOS 高灵敏度模式:', iosHighSensitivity ? '开启' : '关闭');
+          
+          // 显示提示
+          showIOSSensitivityTip();
+        }
+        lastTouchEndTime = now;
+      }
     }
     
     isPointerDown = false;
     isGestureActive = false;
     touchStartDistance = 0;
     lastTouchDistance = 0;
+    
+    // macOS Safari调试日志
+    if (isMacOSSafari) {
+      console.log('macOS Safari触摸结束');
+    }
+  }
+
+  // iOS 灵敏度提示函数
+  function showIOSSensitivityTip() {
+    // 移除可能存在的旧提示
+    const existingTip = document.querySelector('.ios-sensitivity-tip');
+    if (existingTip) {
+      existingTip.remove();
+    }
+    
+    const tip = document.createElement('div');
+    tip.className = 'ios-sensitivity-tip';
+    tip.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      text-align: center;
+      z-index: 10000;
+      max-width: 300px;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    `;
+    tip.innerHTML = `
+      <div>iOS 拖动灵敏度</div>
+      <div style="margin-top: 10px; font-size: 12px;">
+        ${iosHighSensitivity ? '高灵敏度模式已开启' : '标准灵敏度模式'}
+      </div>
+      <div style="margin-top: 5px; font-size: 11px; opacity: 0.8;">
+        双击切换模式
+      </div>
+    `;
+    document.body.appendChild(tip);
+    
+    setTimeout(() => {
+      if (tip.parentNode) {
+        tip.parentNode.removeChild(tip);
+      }
+    }, 2000);
+  }
+  
+  // 侧边栏显隐功能
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    
+    if (!sidebar) {
+      console.error('侧边栏元素未找到');
+      return;
+    }
+    
+    if (!toggleBtn) {
+      console.error('侧边栏显隐按钮未找到');
+      return;
+    }
+    
+    isSidebarVisible = !isSidebarVisible;
+    
+    if (isSidebarVisible) {
+      sidebar.classList.remove('hidden');
+      toggleBtn.classList.remove('sidebar-hidden');
+      console.log('侧边栏已显示');
+    } else {
+      sidebar.classList.add('hidden');
+      toggleBtn.classList.add('sidebar-hidden');
+      console.log('侧边栏已隐藏');
+    }
+    
+    // Safari特殊处理：强制重绘
+    if (isIOS || isMacOSSafari) {
+      sidebar.style.transform = 'translateZ(0)';
+      setTimeout(() => {
+        sidebar.style.transform = '';
+      }, 10);
+    }
+  }
+  
+  // 自动隐藏侧边栏
+  function hideSidebarOnPlay() {
+    if (isSidebarVisible) {
+      toggleSidebar();
+      console.log('播放时自动隐藏侧边栏');
+    }
+  }
+  
+  // 屏蔽Safari浏览器下滑退出全屏
+  function preventSafariSwipeDown() {
+    if (isIOS || isSafari) {
+      console.log('屏蔽Safari下滑退出全屏操作');
+      
+      let startY = 0;
+      let startX = 0;
+      let isSwipeDown = false;
+      
+      // 监听触摸开始
+      document.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          startY = e.touches[0].clientY;
+          startX = e.touches[0].clientX;
+          isSwipeDown = false;
+        }
+      }, { passive: true });
+      
+      // 监听触摸移动
+      document.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 1 && isFullscreen) {
+          const currentY = e.touches[0].clientY;
+          const currentX = e.touches[0].clientX;
+          const deltaY = currentY - startY;
+          const deltaX = Math.abs(currentX - startX);
+          
+          // 检测是否为下滑手势（Y轴向下移动超过50px，X轴移动小于30px）
+          if (deltaY > 50 && deltaX < 30) {
+            isSwipeDown = true;
+            // e.preventDefault();
+            // console.log('检测到Safari下滑手势，已阻止');
+          }
+        }
+      }, { passive: false });
+      
+      // 监听触摸结束
+      document.addEventListener('touchend', (e) => {
+        if (isSwipeDown && isFullscreen) {
+          // e.preventDefault();
+          // console.log('阻止Safari下滑退出全屏');
+        }
+        isSwipeDown = false;
+      }, { passive: false });
+    }
   }
 
   function onResize() {
@@ -958,7 +1377,7 @@
     
     // iOS设备特殊插值优化
     if (isIOS) {
-      baseLerpFactor = 0.05; // iOS设备使用更低的插值因子
+      baseLerpFactor = 0.08; // iOS设备使用更高的插值因子以提高响应速度
     }
     
     const lerpFactor = Math.min(baseLerpFactor, fps / 400); // 根据FPS调整插值速度
@@ -1280,8 +1699,8 @@
         }
       };
       
-      if (isMacOSSafari) {
-        // macOS Safari特殊处理：添加播放按钮
+      if (isMacOSSafari || isIOS) {
+        // macOS Safari 和 iOS Safari 特殊处理：添加播放按钮
         const playBtn = document.createElement('button');
         playBtn.className = 'play-btn';
         playBtn.innerHTML = kind === 'video' ? '▶' : '📷';
@@ -1294,12 +1713,36 @@
           font-size: 12px;
           cursor: pointer;
           margin-left: 8px;
+          ${isIOS ? `
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            min-height: 32px;
+            min-width: 32px;
+          ` : ''}
         `;
         playBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          console.log('macOS Safari播放按钮点击');
+          console.log(isIOS ? 'iOS Safari播放按钮点击' : 'macOS Safari播放按钮点击');
           loadMedia();
+          
+          // 播放按钮点击后隐藏侧边栏
+          hideSidebarOnPlay();
         });
+        
+        // iOS 设备添加触摸事件支持
+        if (isIOS) {
+          playBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('iOS Safari播放按钮触摸事件触发');
+            loadMedia();
+            
+            // 播放按钮触摸后隐藏侧边栏
+            hideSidebarOnPlay();
+          });
+        }
         
         // 将播放按钮添加到列表项
         const container = document.createElement('div');
@@ -1310,17 +1753,69 @@
         container.appendChild(playBtn);
         li.appendChild(container);
         
-        // 保留双击事件作为备选
-        li.addEventListener('dblclick', () => {
-          console.log('macOS Safari双击事件触发');
-          loadMedia();
-        });
+        // iOS Safari 特殊处理：增强双击事件
+        if (isIOS) {
+          // iOS Safari 使用更可靠的事件处理
+          let clickCount = 0;
+          let clickTimer = null;
+          
+          li.addEventListener('click', (e) => {
+            e.preventDefault();
+            clickCount++;
+            
+            if (clickCount === 1) {
+              clickTimer = setTimeout(() => {
+                clickCount = 0;
+              }, 300);
+            } else if (clickCount === 2) {
+              clearTimeout(clickTimer);
+              clickCount = 0;
+              console.log('iOS Safari双击事件触发');
+              loadMedia();
+              
+              // 双击后隐藏侧边栏
+              hideSidebarOnPlay();
+            }
+          });
+          
+          // 添加触摸事件支持
+          li.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            clickCount++;
+            
+            if (clickCount === 1) {
+              clickTimer = setTimeout(() => {
+                clickCount = 0;
+              }, 300);
+            } else if (clickCount === 2) {
+              clearTimeout(clickTimer);
+              clickCount = 0;
+              console.log('iOS Safari触摸双击事件触发');
+              loadMedia();
+              
+              // 双击后隐藏侧边栏
+              hideSidebarOnPlay();
+            }
+          });
+        } else {
+          // macOS Safari 保留原有双击事件作为备选
+          li.addEventListener('dblclick', () => {
+            console.log('macOS Safari双击事件触发');
+            loadMedia();
+            
+            // 双击后隐藏侧边栏
+            hideSidebarOnPlay();
+          });
+        }
       } else {
-        // 非macOS Safari的原有逻辑
+        // 非Safari浏览器的原有逻辑
         li.appendChild(name);
         li.addEventListener('dblclick', () => {
           console.log('双击事件触发');
           loadMedia();
+          
+          // 双击后隐藏侧边栏
+          hideSidebarOnPlay();
         });
       }
       listEl.appendChild(li);
@@ -1747,6 +2242,9 @@
       videoEl.play().then(() => {
         updatePlayButtonIcon(true);
         console.log('视频播放成功');
+        
+        // 播放时自动隐藏侧边栏
+        hideSidebarOnPlay();
       }).catch((error) => {
         console.error('视频播放失败:', error);
         alert('视频播放失败，请检查视频格式是否支持');
@@ -1782,7 +2280,10 @@
                              document.mozFullScreenElement || 
                              document.msFullscreenElement;
     
-    if (!fullscreenElement) {
+    // iOS Safari 特殊处理：检查模拟全屏状态
+    const isIOSSimulatedFullscreen = viewerEl && viewerEl.hasAttribute('data-ios-simulated-fullscreen');
+    
+    if (!fullscreenElement && !isIOSSimulatedFullscreen) {
       // 进入全屏
       if (isMobile) {
         // 移动端特殊处理，防止调用系统播放器
@@ -1804,26 +2305,201 @@
         }
       }
       
-      if (viewerEl.requestFullscreen) {
-        viewerEl.requestFullscreen();
-      } else if (viewerEl.webkitRequestFullscreen) {
-        viewerEl.webkitRequestFullscreen();
-      } else if (viewerEl.msRequestFullscreen) {
-        viewerEl.msRequestFullscreen();
+      // iOS Safari 特殊全屏处理
+      if (isIOS) {
+        console.log('iOS Safari 尝试进入全屏');
+        
+        // iOS Safari 需要特殊的全屏处理
+        if (viewerEl.webkitRequestFullscreen) {
+          try {
+            viewerEl.webkitRequestFullscreen();
+            console.log('iOS Safari 全屏请求已发送');
+          } catch (error) {
+            console.error('iOS Safari 全屏请求失败:', error);
+            // 如果全屏失败，尝试使用 CSS 模拟全屏
+            simulateFullscreenForIOS();
+          }
+        } else {
+          // 如果 webkitRequestFullscreen 不可用，使用 CSS 模拟全屏
+          simulateFullscreenForIOS();
+        }
+      } else {
+        // 非 iOS 设备的原有逻辑
+        if (viewerEl.requestFullscreen) {
+          viewerEl.requestFullscreen();
+        } else if (viewerEl.webkitRequestFullscreen) {
+          viewerEl.webkitRequestFullscreen();
+        } else if (viewerEl.msRequestFullscreen) {
+          viewerEl.msRequestFullscreen();
+        }
       }
       isFullscreen = true;
     } else {
       // 退出全屏
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      } else if (document.webkitExitFullscreen) {
-        document.webkitExitFullscreen();
-      } else if (document.msExitFullscreen) {
-        document.msExitFullscreen();
+      if (isIOS) {
+        console.log('iOS Safari 尝试退出全屏');
+        if (document.webkitExitFullscreen) {
+          try {
+            document.webkitExitFullscreen();
+            console.log('iOS Safari 退出全屏请求已发送');
+          } catch (error) {
+            console.error('iOS Safari 退出全屏失败:', error);
+            // 如果退出全屏失败，使用 CSS 模拟退出
+            exitSimulatedFullscreenForIOS();
+          }
+        } else {
+          exitSimulatedFullscreenForIOS();
+        }
+      } else {
+        // 非 iOS 设备的原有逻辑
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+        }
       }
       isFullscreen = false;
     }
     updateFullscreenButton();
+  }
+
+  // iOS Safari 模拟全屏函数
+  function simulateFullscreenForIOS() {
+    console.log('iOS Safari 使用 CSS 模拟全屏');
+    
+    // 添加全屏样式
+    viewerEl.style.position = 'fixed';
+    viewerEl.style.top = '0';
+    viewerEl.style.left = '0';
+    viewerEl.style.width = '100vw';
+    viewerEl.style.height = '100vh';
+    viewerEl.style.zIndex = '9999';
+    viewerEl.style.backgroundColor = '#000';
+    
+    // 隐藏其他元素
+    const sidebar = document.getElementById('sidebar');
+    const playerControls = document.getElementById('playerControls');
+    const appFooter = document.querySelector('.app-footer');
+    
+    if (sidebar) {
+      sidebar.style.display = 'none';
+      sidebar.style.visibility = 'hidden';
+      sidebar.style.opacity = '0';
+    }
+    
+    if (playerControls) {
+      playerControls.style.display = 'none';
+    }
+    
+    if (appFooter) {
+      appFooter.style.display = 'none';
+    }
+    
+    // 添加退出全屏按钮
+    addIOSExitButton();
+    
+    // 标记为模拟全屏状态
+    viewerEl.setAttribute('data-ios-simulated-fullscreen', 'true');
+    
+    // 触发全屏状态变化
+    setTimeout(() => {
+      handleFullscreenChange();
+    }, 100);
+  }
+  
+  function exitSimulatedFullscreenForIOS() {
+    console.log('iOS Safari 退出 CSS 模拟全屏');
+    
+    // 移除全屏样式
+    viewerEl.style.position = '';
+    viewerEl.style.top = '';
+    viewerEl.style.left = '';
+    viewerEl.style.width = '';
+    viewerEl.style.height = '';
+    viewerEl.style.zIndex = '';
+    viewerEl.style.backgroundColor = '';
+    
+    // 显示其他元素
+    const sidebar = document.getElementById('sidebar');
+    const playerControls = document.getElementById('playerControls');
+    const appFooter = document.querySelector('.app-footer');
+    
+    if (sidebar) {
+      sidebar.style.display = 'flex';
+      sidebar.style.visibility = 'visible';
+      sidebar.style.opacity = '1';
+    }
+    
+    if (playerControls) {
+      playerControls.style.display = 'flex';
+    }
+    
+    if (appFooter) {
+      appFooter.style.display = 'block';
+    }
+    
+    // 移除退出全屏按钮
+    removeIOSExitButton();
+    
+    // 移除模拟全屏标记
+    viewerEl.removeAttribute('data-ios-simulated-fullscreen');
+    
+    // 触发全屏状态变化
+    setTimeout(() => {
+      handleFullscreenChange();
+    }, 100);
+  }
+  
+  function addIOSExitButton() {
+    // 移除可能存在的旧按钮
+    removeIOSExitButton();
+    
+    const exitBtn = document.createElement('div');
+    exitBtn.className = 'ios-exit-fullscreen-overlay';
+    exitBtn.innerHTML = '✕';
+    exitBtn.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10001;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 15px;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      cursor: pointer;
+      border: 2px solid rgba(255,255,255,0.3);
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    `;
+    
+    exitBtn.onclick = () => {
+      exitSimulatedFullscreenForIOS();
+    };
+    
+    // 添加触摸事件支持
+    exitBtn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      exitSimulatedFullscreenForIOS();
+    });
+    
+    document.body.appendChild(exitBtn);
+  }
+  
+  function removeIOSExitButton() {
+    const existingBtn = document.querySelector('.ios-exit-fullscreen-overlay');
+    if (existingBtn) {
+      existingBtn.remove();
+    }
   }
 
   // 监听全屏状态变化
@@ -1833,11 +2509,16 @@
                              document.webkitFullscreenElement || 
                              document.mozFullScreenElement || 
                              document.msFullscreenElement;
-    isFullscreen = !!fullscreenElement;
+    
+    // iOS Safari 特殊处理：检查模拟全屏状态
+    const isIOSSimulatedFullscreen = viewerEl && viewerEl.hasAttribute('data-ios-simulated-fullscreen');
+    
+    isFullscreen = !!fullscreenElement || isIOSSimulatedFullscreen;
     
     console.log('全屏状态变化:', { isFullscreen, fullscreenElement });
     
     const sidebar = document.getElementById('sidebar');
+    const playerControls = document.getElementById('playerControls');
     
     if (sidebar) {
       if (isFullscreen) {
@@ -1858,6 +2539,15 @@
           sidebar.style.bottom = '0';
           sidebar.style.zIndex = '100';
         }
+      }
+    }
+    
+    // 添加/移除全屏状态类
+    if (playerControls) {
+      if (isFullscreen) {
+        playerControls.classList.add('fullscreen-mode');
+      } else {
+        playerControls.classList.remove('fullscreen-mode');
       }
     }
     

@@ -112,6 +112,55 @@ body {
   background: var(--panel);
   border-left: 1px solid #202636;
   display: flex; flex-direction: column;
+  transition: transform 0.3s ease;
+}
+
+.sidebar.hidden {
+  transform: translateX(100%);
+}
+
+/* 侧边栏显隐按钮 */
+.sidebar-toggle {
+  position: fixed;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.sidebar-toggle:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.sidebar-toggle-icon {
+  width: 24px;
+  height: 24px;
+  fill: white;
+  transition: transform 0.3s ease;
+}
+
+.sidebar-toggle.sidebar-hidden .sidebar-toggle-icon {
+  transform: rotate(180deg);
+}
+
+.sidebar-toggle.hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 .sidebar__header { display: flex; gap: 8px; padding: 8px; border-bottom: 1px solid #202636; }
 .tabs { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid #202636; }
@@ -148,6 +197,11 @@ canvas { display: block; }
   align-items: center;
   justify-content: center;
   z-index: 1000;
+}
+
+/* 确保隐藏属性生效 */
+.server-picker[hidden] {
+  display: none !important;
 }
 .server-picker__panel {
   width: min(720px, 92vw);
@@ -410,10 +464,70 @@ canvas { display: block; }
   border: none;
 }
 
-/* 移动端适配 */
-@media (max-width: 768px) {
+/* 平板设备适配 (768px - 1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .app-header {
+    padding: 12px 16px;
+  }
+  
+  .brand {
+    font-size: 18px;
+  }
+  
+  .controls {
+    gap: 8px;
+  }
+  
+  .btn {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  
+  .sidebar {
+    width: clamp(250px, 30vw, 350px);
+  }
+  
   .viewer {
-    height: calc(100vh - 120px - 40px); /* 移动端也使用相同的计算方式 */
+    height: calc(100vh - 100px - 40px);
+  }
+}
+
+/* 移动端适配 (480px - 768px) */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 10px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .brand {
+    font-size: 16px;
+    order: 1;
+    flex: 1;
+    min-width: 120px;
+  }
+  
+  .controls {
+    order: 2;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+  
+  .btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    min-width: auto;
+  }
+  
+  .quality-selector {
+    padding: 6px 8px;
+    font-size: 12px;
+    min-width: 100px;
+  }
+  
+  .viewer {
+    height: calc(100vh - 120px - 40px);
   }
   
   /* 移动端sidebar优化 */
@@ -425,9 +539,52 @@ canvas { display: block; }
     transform: translateZ(0);
   }
   
+  /* 移动端侧边栏显隐按钮 */
+  .sidebar-toggle {
+    right: 15px;
+    width: 45px;
+    height: 45px;
+  }
+  
+  .sidebar-toggle-icon {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .sidebar__header {
+    padding: 8px;
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .sidebar__header .text {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+  
+  .sidebar__header .btn {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+  
+  .tabs {
+    padding: 6px;
+    gap: 4px;
+  }
+  
+  .tab {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  
+  .file-list li {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  
   .player-controls {
     height: 70px;
-    bottom: 40px; /* 保持固定在底部提示栏上方 */
+    bottom: 40px;
   }
   
   .player-controls__content {
@@ -453,7 +610,7 @@ canvas { display: block; }
   }
   
   .volume-control {
-    display: none; /* 移动端隐藏音量控制 */
+    display: none;
   }
   
   /* 移动端视频隐藏 */
@@ -484,6 +641,11 @@ canvas { display: block; }
     height: 18px !important;
   }
   
+  /* 全屏状态下隐藏原有的全屏按钮，避免重复 */
+  .player-controls.fullscreen-mode .player-btn--fullscreen {
+    display: none !important;
+  }
+  
   /* 全屏时的额外退出按钮 */
   .exit-fullscreen-overlay {
     position: fixed;
@@ -509,14 +671,318 @@ canvas { display: block; }
   }
 }
 
+/* 小屏幕手机适配 (320px - 480px) */
 @media (max-width: 480px) {
+  .app-header {
+    padding: 8px 10px;
+    min-height: auto;
+  }
+  
+  .brand {
+    font-size: 14px;
+    min-width: 100px;
+  }
+  
+  .controls {
+    gap: 4px;
+    margin-top: 4px;
+  }
+  
+  .btn {
+    padding: 5px 8px;
+    font-size: 11px;
+    min-width: auto;
+    flex: 1;
+    max-width: 120px;
+  }
+  
+  .quality-selector {
+    padding: 5px 6px;
+    font-size: 11px;
+    min-width: 80px;
+    max-width: 100px;
+  }
+  
+  .loading-progress {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+  
+  .progress-bar {
+    height: 3px;
+  }
+  
+  .viewer {
+    height: calc(100vh - 140px - 40px);
+  }
+  
+  /* 小屏幕sidebar优化 */
+  .sidebar {
+    width: clamp(180px, 40vw, 250px);
+    font-size: 12px;
+  }
+  
+  /* 小屏幕侧边栏显隐按钮 */
+  .sidebar-toggle {
+    right: 12px;
+    width: 40px;
+    height: 40px;
+  }
+  
+  .sidebar-toggle-icon {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .sidebar__header {
+    padding: 6px;
+    gap: 4px;
+  }
+  
+  .sidebar__header .text {
+    font-size: 11px;
+    padding: 4px 6px;
+  }
+  
+  .sidebar__header .btn {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+  
+  .tabs {
+    padding: 4px;
+    gap: 2px;
+  }
+  
+  .tab {
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+  
+  .file-list li {
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+  
+  .file-list__name {
+    font-size: 11px;
+  }
+  
+  .play-btn {
+    font-size: 10px !important;
+    padding: 2px 4px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+  }
+  
+  /* 小屏幕播放控制优化 */
+  .player-controls {
+    height: 60px;
+    bottom: 30px;
+  }
+  
+  .player-controls__content {
+    padding: 0 12px;
+  }
+  
   .player-controls__left,
   .player-controls__right {
-    gap: 8px;
+    gap: 6px;
   }
   
   .player-controls__center {
-    margin: 0 12px;
+    margin: 0 8px;
+  }
+  
+  .player-btn {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .player-icon {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .time-display {
+    font-size: 11px;
+  }
+  
+  .seek-tooltip {
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+  
+  /* 小屏幕提示优化 */
+  .hint {
+    font-size: 12px;
+    padding: 8px 12px;
+    max-width: 280px;
+  }
+  
+  /* 小屏幕全屏退出按钮 */
+  .exit-fullscreen-overlay {
+    top: 15px;
+    right: 15px;
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+    padding: 8px;
+  }
+  
+  /* 小屏幕iOS退出按钮 */
+  .ios-exit-fullscreen-overlay {
+    top: 15px;
+    right: 15px;
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+    padding: 12px;
+  }
+}
+
+/* 超小屏幕设备适配 (320px 以下) */
+@media (max-width: 320px) {
+  .app-header {
+    padding: 6px 8px;
+  }
+  
+  .brand {
+    font-size: 12px;
+    min-width: 80px;
+  }
+  
+  .controls {
+    gap: 2px;
+    margin-top: 2px;
+  }
+  
+  .btn {
+    padding: 4px 6px;
+    font-size: 10px;
+    max-width: 100px;
+  }
+  
+  .quality-selector {
+    padding: 4px 5px;
+    font-size: 10px;
+    min-width: 70px;
+    max-width: 90px;
+  }
+  
+  .viewer {
+    height: calc(100vh - 150px - 40px);
+  }
+  
+  /* 超小屏幕sidebar优化 */
+  .sidebar {
+    width: clamp(160px, 45vw, 200px);
+    font-size: 11px;
+  }
+  
+  /* 超小屏幕侧边栏显隐按钮 */
+  .sidebar-toggle {
+    right: 10px;
+    width: 35px;
+    height: 35px;
+  }
+  
+  .sidebar-toggle-icon {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .sidebar__header {
+    padding: 4px;
+    gap: 2px;
+  }
+  
+  .sidebar__header .text {
+    font-size: 10px;
+    padding: 3px 5px;
+  }
+  
+  .sidebar__header .btn {
+    font-size: 9px;
+    padding: 3px 6px;
+  }
+  
+  .tabs {
+    padding: 3px;
+    gap: 1px;
+  }
+  
+  .tab {
+    padding: 3px 5px;
+    font-size: 10px;
+  }
+  
+  .file-list li {
+    padding: 3px 5px;
+    font-size: 10px;
+  }
+  
+  .play-btn {
+    font-size: 9px !important;
+    padding: 1px 3px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+  }
+  
+  /* 超小屏幕播放控制优化 */
+  .player-controls {
+    height: 50px;
+    bottom: 25px;
+  }
+  
+  .player-controls__content {
+    padding: 0 8px;
+  }
+  
+  .player-controls__left,
+  .player-controls__right {
+    gap: 4px;
+  }
+  
+  .player-controls__center {
+    margin: 0 6px;
+  }
+  
+  .player-btn {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .player-icon {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .time-display {
+    font-size: 10px;
+  }
+  
+  .seek-tooltip {
+    font-size: 9px;
+    padding: 1px 3px;
+  }
+  
+  /* 超小屏幕提示优化 */
+  .hint {
+    font-size: 11px;
+    padding: 6px 10px;
+    max-width: 250px;
+  }
+  
+  /* 超小屏幕全屏退出按钮 */
+  .exit-fullscreen-overlay,
+  .ios-exit-fullscreen-overlay {
+    top: 10px;
+    right: 10px;
+    width: 35px;
+    height: 35px;
+    font-size: 14px;
+    padding: 6px;
   }
 }
 
@@ -550,6 +1016,25 @@ canvas { display: block; }
     backface-visibility: hidden;
     /* 确保在iOS设备上可见，但不影响全屏隐藏 */
     position: absolute !important;
+  }
+  
+  /* Safari侧边栏显隐按钮特殊优化 */
+  .sidebar-toggle {
+    -webkit-transform: translateY(-50%) translateZ(0);
+    transform: translateY(-50%) translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    will-change: transform;
+    /* 确保在Safari中可见 */
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  .sidebar-toggle-icon {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    will-change: transform;
   }
 }
 
