@@ -58,6 +58,8 @@
   const muteButton = document.getElementById('muteButton');
   /** @type {HTMLButtonElement} */
   const sidebarToggle = document.getElementById('sidebarToggle');
+  /** @type {HTMLButtonElement} */
+  const gyroToggleButton = document.getElementById('gyroToggleButton');
 
   let scene, camera, renderer;
   let sphereMesh = null;
@@ -110,32 +112,46 @@
   let isSafari = false;
   let isMacOSSafari = false;
   let isAndroid = false;
+  let isFullscreen = false;
+
+  // 陀螺仪控制状态
+  let isGyroEnabled = false;
+  let gyroListenerAttached = false;
+  let gyroBaselineAlpha = null;
+  let gyroFilteredLon = 0;
+  let gyroFilteredLat = 0;
+  let gyroHasReceivedData = false;
+  let gyroNoDataTimer = null;
 
   init();
   animate();
 
   function init() {
+    const userAgent = navigator.userAgent;
+    const hasTouchPoints = (navigator.maxTouchPoints || 0) > 1;
+    const isIPadDesktopUA = /Macintosh/i.test(userAgent) && hasTouchPoints;
+
     // 检测移动端
-    isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) || isIPadDesktopUA;
     
     // 检测iOS设备
-    isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    isIOS = /iPhone|iPad|iPod/i.test(userAgent) || isIPadDesktopUA;
     
     // 检测Safari浏览器（包括macOS Safari）
-    isSafari = /Safari/i.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS/i.test(navigator.userAgent);
+    isSafari = /Safari/i.test(userAgent) && !/Chrome|CriOS|FxiOS/i.test(userAgent);
     
     // 检测macOS Safari
-    isMacOSSafari = isSafari && /Macintosh/i.test(navigator.userAgent);
+    isMacOSSafari = isSafari && /Macintosh/i.test(userAgent) && !isIPadDesktopUA;
     
     // 检测安卓设备
-    isAndroid = /Android/i.test(navigator.userAgent);
+    isAndroid = /Android/i.test(userAgent);
     
     // 检测MIUI浏览器和小米设备
-    isMIUI = /MiuiBrowser|MIUI/i.test(navigator.userAgent) || 
-             (isMobile && /Xiaomi|Redmi/i.test(navigator.userAgent));
-    isXiaomi = /Xiaomi|Redmi|MIUI/i.test(navigator.userAgent);
+    isMIUI = /MiuiBrowser|MIUI/i.test(userAgent) || 
+             (isMobile && /Xiaomi|Redmi/i.test(userAgent));
+    isXiaomi = /Xiaomi|Redmi|MIUI/i.test(userAgent);
     
-    console.log('设备检测:', { isMobile, isIOS, isAndroid, isSafari, isMacOSSafari, isMIUI, isXiaomi, userAgent: navigator.userAgent });
+    console.log('设备检测:', { isMobile, isIOS, isAndroid, isSafari, isMacOSSafari, isMIUI, isXiaomi, isIPadDesktopUA, hasTouchPoints, userAgent });
     
     // 安卓设备特殊提示
     if (isAndroid) {
@@ -374,6 +390,244 @@
   
   // 屏蔽Safari下滑退出全屏
   preventSafariSwipeDown();
+
+  // 支持通过 URL 参数自动加载：?folder=abc
+  tryLoadSidebarFromUrlParam();
+  }
+
+  function resolveSidebarBasePath(folderInput) {
+    const normalizedFolder = normalizeFolderInput(folderInput);
+    if (!normalizedFolder) return '/media/';
+    return `/media/${normalizedFolder}/`;
+  }
+
+  function normalizeFolderInput(inputValue) {
+    const raw = (inputValue || '').trim();
+    if (!raw) return '';
+
+    const normalized = raw
+      .replace(/\\/g, '/')
+      .replace(/^\/+|\/+$/g, '')
+      .replace(/\/{2,}/g, '/');
+    if (!normalized || normalized.includes('..')) return '';
+
+    // 兼容误传 media 前缀（例如 media/a/b 或 /media/a/b）
+    const withoutMediaPrefix = normalized.replace(/^media\/?/i, '');
+    if (!withoutMediaPrefix) return '';
+
+    // 支持多级英文目录：segment/segment，仅允许字母/数字/下划线/中划线
+    const segments = withoutMediaPrefix.split('/');
+    const isValid = segments.length > 0 && segments.every((seg) => /^[A-Za-z0-9_-]+$/.test(seg));
+    if (!isValid) return '';
+
+    return withoutMediaPrefix;
+  }
+
+  function getSidebarFolderFromUrl() {
+    if (typeof window === 'undefined') return '';
+    const params = new URLSearchParams(window.location.search || '');
+    const rawFolder = (params.get('folder') || '').trim();
+    if (!rawFolder) return '';
+
+    const normalizedFolder = normalizeFolderInput(rawFolder);
+    if (!normalizedFolder) {
+      console.warn('URL 参数 folder 非法，已忽略:', rawFolder);
+      return '';
+    }
+    return normalizedFolder;
+  }
+
+  function tryLoadSidebarFromUrlParam() {
+    const folder = getSidebarFolderFromUrl();
+    if (!folder) return;
+    if (sidebarBaseInput) sidebarBaseInput.value = folder;
+    const basePath = resolveSidebarBasePath(folder);
+    loadSidebar(basePath);
+  }
+
+  function isTouchCapableDevice() {
+    return isMobile || (navigator.maxTouchPoints || 0) > 0 || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  }
+
+  function supportsGyroControl() {
+    if (typeof window === 'undefined') return false;
+    return ('ondeviceorientation' in window) || typeof window.DeviceOrientationEvent !== 'undefined';
+  }
+
+  function normalizeAngle360(deg) {
+    return ((deg % 360) + 360) % 360;
+  }
+
+  function normalizeAngle180(deg) {
+    let value = normalizeAngle360(deg);
+    if (value > 180) value -= 360;
+    return value;
+  }
+
+  function shortestAngleDelta(fromDeg, toDeg) {
+    return normalizeAngle180(toDeg - fromDeg);
+  }
+
+  function getScreenOrientationAngle() {
+    if (screen.orientation && typeof screen.orientation.angle === 'number') {
+      return screen.orientation.angle;
+    }
+    if (typeof window.orientation === 'number') {
+      return window.orientation;
+    }
+    return 0;
+  }
+
+  function mapPitchByOrientation(beta, gamma) {
+    const angle = getScreenOrientationAngle();
+    if (angle === 90) return -gamma;
+    if (angle === -90 || angle === 270) return gamma;
+    if (Math.abs(angle) === 180) return -beta;
+    return beta;
+  }
+
+  function updateGyroButtonState() {
+    if (!gyroToggleButton) return;
+
+    if (!isTouchCapableDevice()) {
+      gyroToggleButton.textContent = '陀螺仪（需触屏设备）';
+      gyroToggleButton.disabled = true;
+      gyroToggleButton.classList.remove('btn--active');
+      return;
+    }
+
+    if (!supportsGyroControl()) {
+      // 某些浏览器在权限未触发前能力上报不稳定，允许用户点击尝试
+      gyroToggleButton.textContent = '陀螺仪：尝试启用';
+      gyroToggleButton.disabled = false;
+      gyroToggleButton.classList.remove('btn--active');
+      return;
+    }
+
+    gyroToggleButton.disabled = false;
+    gyroToggleButton.textContent = isGyroEnabled ? '陀螺仪：开' : '陀螺仪：关';
+    gyroToggleButton.classList.toggle('btn--active', isGyroEnabled);
+  }
+
+  function clearGyroNoDataTimer() {
+    if (gyroNoDataTimer) {
+      clearTimeout(gyroNoDataTimer);
+      gyroNoDataTimer = null;
+    }
+  }
+
+  function handleGyroOrientationChange() {
+    // 横竖屏变化时重新校准基准角，避免视角突跳
+    gyroBaselineAlpha = null;
+  }
+
+  function onDeviceOrientation(event) {
+    if (!isGyroEnabled) return;
+    if (isPointerDown) return;
+
+    const alpha = Number(event.alpha);
+    const beta = Number(event.beta);
+    const gamma = Number(event.gamma);
+    if (!isFinite(alpha) || !isFinite(beta) || !isFinite(gamma)) return;
+
+    if (!gyroHasReceivedData) {
+      gyroHasReceivedData = true;
+      clearGyroNoDataTimer();
+    }
+
+    if (gyroBaselineAlpha == null) {
+      gyroBaselineAlpha = normalizeAngle360(alpha);
+      gyroFilteredLon = targetLon;
+      gyroFilteredLat = targetLat;
+    }
+
+    const screenAngle = getScreenOrientationAngle();
+    const relativeYaw = normalizeAngle180(normalizeAngle360(alpha) - gyroBaselineAlpha + screenAngle);
+    const mappedLon = -relativeYaw;
+    const mappedLat = THREE.MathUtils.clamp(mapPitchByOrientation(beta, gamma), -85, 85);
+
+    const smoothFactor = isIOS ? 0.08 : 0.12;
+    const lonDelta = shortestAngleDelta(gyroFilteredLon, mappedLon);
+    gyroFilteredLon = normalizeAngle180(gyroFilteredLon + lonDelta * smoothFactor);
+    gyroFilteredLat += (mappedLat - gyroFilteredLat) * smoothFactor;
+
+    targetLon = gyroFilteredLon;
+    targetLat = THREE.MathUtils.clamp(gyroFilteredLat, -85, 85);
+  }
+
+  function detachGyroListener() {
+    if (gyroListenerAttached) {
+      window.removeEventListener('deviceorientation', onDeviceOrientation, true);
+      window.removeEventListener('orientationchange', handleGyroOrientationChange);
+      gyroListenerAttached = false;
+    }
+  }
+
+  function stopGyroControl() {
+    isGyroEnabled = false;
+    detachGyroListener();
+    clearGyroNoDataTimer();
+    gyroBaselineAlpha = null;
+    updateGyroButtonState();
+  }
+
+  async function startGyroControl() {
+    if (!supportsGyroControl()) {
+      const needSecureContext = window.location.protocol !== 'https:' &&
+        window.location.hostname !== 'localhost' &&
+        window.location.hostname !== '127.0.0.1';
+      if (needSecureContext) {
+        alert('当前环境可能不支持陀螺仪读取：请使用 HTTPS 打开页面（或 localhost 调试）。');
+      } else {
+        alert('当前设备/浏览器未暴露陀螺仪接口。请尝试系统浏览器（Safari/Chrome）并开启“运动与方向访问”权限。');
+      }
+      return;
+    }
+
+    try {
+      const deviceOrientation = window.DeviceOrientationEvent;
+      if (deviceOrientation && typeof deviceOrientation.requestPermission === 'function') {
+        const permission = await deviceOrientation.requestPermission();
+        if (permission !== 'granted') {
+          alert('未授予陀螺仪权限，无法启用自动视角。');
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('陀螺仪权限申请失败:', err);
+      alert('陀螺仪权限申请失败：' + (err && err.message ? err.message : 'unknown'));
+      return;
+    }
+
+    isGyroEnabled = true;
+    gyroHasReceivedData = false;
+    gyroBaselineAlpha = null;
+    gyroFilteredLon = targetLon;
+    gyroFilteredLat = targetLat;
+
+    if (!gyroListenerAttached) {
+      window.addEventListener('deviceorientation', onDeviceOrientation, true);
+      window.addEventListener('orientationchange', handleGyroOrientationChange);
+      gyroListenerAttached = true;
+    }
+
+    clearGyroNoDataTimer();
+    gyroNoDataTimer = setTimeout(() => {
+      if (!gyroHasReceivedData && isGyroEnabled) {
+        stopGyroControl();
+        alert('已启用陀螺仪，但未收到传感器数据。请检查系统设置中的“运动与方向访问”权限。');
+      }
+    }, 2500);
+
+    updateGyroButtonState();
+  }
+
+  async function toggleGyroControl() {
+    if (isGyroEnabled) {
+      stopGyroControl();
+      return;
+    }
+    await startGyroControl();
   }
 
   function bindInteractions() {
@@ -481,7 +735,24 @@
       tabImages.addEventListener('click', () => switchTab('image'));
     }
     if (sidebarLoadBtn) {
-      sidebarLoadBtn.addEventListener('click', () => loadSidebar(sidebarBaseInput.value || '/media/'));
+      sidebarLoadBtn.addEventListener('click', () => {
+        const basePath = resolveSidebarBasePath(sidebarBaseInput ? sidebarBaseInput.value : '');
+        loadSidebar(basePath);
+      });
+    }
+    if (sidebarBaseInput) {
+      sidebarBaseInput.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const basePath = resolveSidebarBasePath(sidebarBaseInput.value);
+        loadSidebar(basePath);
+      });
+    }
+
+    if (gyroToggleButton) {
+      gyroToggleButton.addEventListener('click', () => {
+        toggleGyroControl();
+      });
     }
     
     // 画质选择器
@@ -579,6 +850,12 @@
         }
       });
     }
+
+    window.addEventListener('pagehide', () => {
+      stopGyroControl();
+    });
+
+    updateGyroButtonState();
   }
 
   function isServerPickerHidden() {

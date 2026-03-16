@@ -50,6 +50,14 @@ body {
 }
 .btn:hover { background: var(--btn-hover); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn--active {
+  background: var(--brand);
+  border-color: #6ea0ff;
+  color: #fff;
+}
+.btn--active:hover {
+  background: #5a9cff;
+}
 .time { display: inline-flex; gap: 6px; color: var(--muted); align-items: center; }
 .seek { width: min(36vw, 380px); accent-color: var(--brand); }
 .quality-selector {

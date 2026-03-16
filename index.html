@@ -18,6 +18,7 @@
         <button id="openButton" class="btn">打开图片/视频</button>
         <input id="fileInput" type="file" accept="image/*,video/*" style="display:none" />
         <button id="serverPickerButton" class="btn">从服务器选择</button>
+        <button id="gyroToggleButton" class="btn" title="移动端开启后可通过陀螺仪控制视角">陀螺仪：关</button>
         <select id="qualitySelector" class="quality-selector">
           <option value="auto">自动画质</option>
           <option value="low">低画质 (快速加载)</option>
@@ -48,7 +49,7 @@
       
       <aside class="sidebar" id="sidebar">
         <div class="sidebar__header">
-          <input id="sidebarBaseInput" class="text" placeholder="列表根路径（默认 /media/）" />
+          <input id="sidebarBaseInput" class="text" placeholder="输入 media 子文件夹名（如 room1，留空为根目录）" />
           <button id="sidebarLoadBtn" class="btn">加载</button>
         </div>
         <div class="tabs">
